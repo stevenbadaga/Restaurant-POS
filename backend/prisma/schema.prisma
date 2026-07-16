@@ -1,0 +1,4247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// AUTH & USER ENUMS
+// ==========================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ==========================================
+// INVENTORY ENUMS
+// ==========================================
+
+enum InventoryUnit {
+  PIECE
+  PORTION
+  BOTTLE
+  CAN
+  PACK
+  BOX
+  GRAM
+  KILOGRAM
+  MILLILITRE
+  LITRE
+  OTHER
+}
+
+enum StockMovementType {
+  OPENING_BALANCE
+  STOCK_RECEIPT
+  DIRECT_SALE_CONSUMPTION
+  RECIPE_CONSUMPTION
+  MANUAL_ADJUSTMENT_IN
+  MANUAL_ADJUSTMENT_OUT
+  WASTAGE
+  RETURN_TO_STOCK
+  TRANSFER_IN
+  TRANSFER_OUT
+  RESERVATION_CREATED
+  RESERVATION_RELEASED
+  REVERSAL
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+  CANCELLED
+}
+
+enum StockReceiptStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+enum StockReservationSourceType {
+  DIRECT_ITEM
+  RECIPE_INGREDIENT
+}
+
+// ==========================================
+// ORDER & MENU ENUMS
+// ==========================================
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  IN_PREPARATION
+  PARTIALLY_READY
+  READY
+  SERVED
+  CANCELLED
+  CLOSED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  PICKUP
+  DELIVERY
+}
+
+// ==========================================
+// PUBLIC WEBSITE ENUMS
+// ==========================================
+
+enum PublicOrderStatus {
+  RECEIVED
+  AWAITING_CONFIRMATION
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum PublicOrderSource {
+  WEBSITE
+  QR_TABLE
+  STAFF_ASSISTED
+}
+
+enum PublicPaymentChoice {
+  PAY_ON_PICKUP
+  PAY_ON_DELIVERY
+  PAY_AT_CASHIER
+  MANUAL_MOBILE_MONEY_REFERENCE
+}
+
+enum DietaryLabel {
+  VEGETARIAN
+  VEGAN
+  HALAL
+  GLUTEN_AWARE
+  SPICY
+  CONTAINS_NUTS
+}
+
+enum PublicOrderAcceptanceMode {
+  MANUAL
+  AUTOMATIC
+}
+
+enum OrderItemStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum TableShape {
+  SQUARE
+  RECTANGLE
+  ROUND
+  OVAL
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  CLEANING
+  OUT_OF_SERVICE
+}
+
+enum MenuItemType {
+  FOOD
+  DRINK
+  DESSERT
+  OTHER
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ReceiptPaperSize {
+  THERMAL_58MM
+  THERMAL_80MM
+  A4
+}
+
+// ==========================================
+// PAYMENT ENUMS
+// ==========================================
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_MONEY
+  BANK_TRANSFER
+  VOUCHER
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  VOIDED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum OrderPaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum PaymentTransactionType {
+  PAYMENT
+  REFUND
+  REVERSAL
+}
+
+enum ReceiptStatus {
+  ISSUED
+  VOIDED
+}
+
+enum RefundRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ==========================================
+// KITCHEN & NOTIFICATION ENUMS
+// ==========================================
+
+enum KitchenTicketStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  PARTIALLY_READY
+  READY
+  CANCELLED
+}
+
+enum NotificationType {
+  ORDER_SUBMITTED
+  KITCHEN_ITEM_READY
+  ORDER_READY
+  ORDER_CANCELLED
+  SYSTEM
+}
+
+// ==========================================
+// SHIFT & ATTENDANCE ENUMS
+// ==========================================
+
+enum ShiftStatus {
+  DRAFT
+  SCHEDULED
+  OPEN
+  CLOSING
+  CLOSED
+  CANCELLED
+}
+
+enum ShiftAssignmentStatus {
+  SCHEDULED
+  CLOCKED_IN
+  ON_BREAK
+  CLOCKED_OUT
+  ABSENT
+  EXCUSED
+  CANCELLED
+}
+
+enum AttendanceEventType {
+  CLOCK_IN
+  BREAK_START
+  BREAK_END
+  CLOCK_OUT
+  MANUAL_CORRECTION
+}
+
+enum AttendanceEventSource {
+  SELF_SERVICE
+  MANAGER
+  SYSTEM
+}
+
+enum CashRegisterStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_SERVICE
+}
+
+enum CashierSessionStatus {
+  OPEN
+  CLOSING
+  PENDING_APPROVAL
+  CLOSED
+  SUSPENDED
+}
+
+enum CashDrawerMovementType {
+  OPENING_FLOAT
+  CASH_PAYMENT
+  CASH_REFUND
+  CASH_IN
+  CASH_OUT
+  SAFE_DROP
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  CLOSING_COUNT
+}
+
+enum CashVarianceStatus {
+  BALANCED
+  OVER
+  SHORT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum HandoverStatus {
+  DRAFT
+  SUBMITTED
+  ACKNOWLEDGED
+}
+
+// ==========================================
+// PHASE 11: PROCUREMENT ENUMS
+// ==========================================
+
+enum PurchaseRequisitionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  CONVERTED
+  CANCELLED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum PurchaseApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum SupplierQuotationStatus {
+  RECEIVED
+  SELECTED
+  NOT_SELECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  DRAFT
+  VERIFIED
+  PARTIALLY_MATCHED
+  MATCHED
+  DISPUTED
+  CANCELLED
+}
+
+enum SupplierReturnStatus {
+  DRAFT
+  APPROVED
+  POSTED
+  CANCELLED
+}
+
+enum StockCountStatus {
+  DRAFT
+  IN_PROGRESS
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  REJECTED
+  CANCELLED
+}
+
+enum StockCountType {
+  FULL
+  CYCLE
+  SPOT
+}
+
+enum StockCountLineStatus {
+  NOT_COUNTED
+  COUNTED
+  RECOUNT_REQUIRED
+  APPROVED
+  POSTED
+}
+
+enum PurchasePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MatchStatus {
+  MATCHED
+  QUANTITY_VARIANCE
+  PRICE_VARIANCE
+  TAX_VARIANCE
+  UNMATCHED_CHARGE
+  PARTIAL_MATCH
+}
+
+// ==========================================
+// PHASE 8: CUSTOMERS, RESERVATIONS, LOYALTY, PROMOTIONS
+// ==========================================
+
+// ==========================================
+// CUSTOMER ENUMS (Phase 8)
+// ==========================================
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum CustomerConsentSource {
+  IN_PERSON
+  PHONE
+  EMAIL
+  WEBSITE
+  STAFF_ENTRY
+  OTHER
+}
+
+enum CustomerNoteType {
+  GENERAL
+  PREFERENCE
+  DIETARY
+  ALLERGY
+  SERVICE
+  WARNING
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ReservationSource {
+  PHONE
+  WALK_IN
+  IN_PERSON
+  STAFF_ENTRY
+  WEBSITE
+  OTHER
+}
+
+enum WaitingListStatus {
+  WAITING
+  NOTIFIED
+  SEATED
+  LEFT
+  CANCELLED
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  MANUAL_ADJUSTMENT_IN
+  MANUAL_ADJUSTMENT_OUT
+  EXPIRY
+  REVERSAL
+}
+
+enum PromotionType {
+  PERCENTAGE_DISCOUNT
+  FIXED_AMOUNT_DISCOUNT
+  FIXED_ITEM_PRICE
+  FREE_ITEM
+  BUY_X_GET_Y
+}
+
+enum PromotionScope {
+  ORDER
+  MENU_ITEM
+  MENU_CATEGORY
+}
+
+enum PromotionStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  EXPIRED
+  CANCELLED
+}
+
+enum DiscountSource {
+  PROMOTION
+  PROMOTION_CODE
+  LOYALTY_REDEMPTION
+  MANUAL_MANAGER_DISCOUNT
+  SERVICE_RECOVERY
+}
+
+enum DiscountStatus {
+  ACTIVE
+  REMOVED
+  REVERSED
+}
+
+enum DiscountRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ==========================================
+// BASE MODELS
+// ==========================================
+
+model Restaurant {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  phone      String?
+  address    String?
+  currency   String   @default("RWF")
+  timezone   String   @default("Africa/Kigali")
+  logoUrl    String?
+  publicSlug String?  @unique
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users                        User[]
+  auditLogs                    AuditLog[]
+  settings                     RestaurantSettings?
+  diningAreas                  DiningArea[]
+  tables                       RestaurantTable[]
+  menuCategories               MenuCategory[]
+  menuItems                    MenuItem[]
+  kitchenStations              KitchenStation[]
+  orders                       Order[]
+  payments                     Payment[]
+  receipts                     Receipt[]
+  paymentRequests              PaymentRequest[]
+  refundRequests               RefundRequest[]
+  stockLocations               StockLocation[]
+  inventoryCategories          InventoryCategory[]
+  inventoryItems               InventoryItem[]
+  inventoryBalances            InventoryBalance[]
+  suppliers                    Supplier[]
+  stockReceipts                StockReceipt[]
+  stockBatches                 StockBatch[]
+  stockMovements               StockMovement[]
+  stockReservations            StockReservation[]
+  inventoryAlerts              InventoryAlert[]
+  recipes                      Recipe[]
+  menuItemInventoryLinks       MenuItemInventoryLink[]
+  documentSequences            DocumentSequence[]
+  refreshTokens                RefreshToken[]
+  kitchenTickets               KitchenTicket[]
+  notifications                AppNotification[]
+  shiftTemplates               ShiftTemplate[]
+  workShifts                   WorkShift[]
+  shiftAssignments             ShiftAssignment[]
+  attendanceEvents             AttendanceEvent[]
+  employeeBreaks               EmployeeBreak[]
+  cashRegisters                CashRegister[]
+  cashierSessions              CashierSession[]
+  cashDrawerMovements          CashDrawerMovement[]
+  cashDenominationCounts       CashDenominationCount[]
+  shiftHandovers               ShiftHandover[]
+  shiftExceptions              ShiftException[]
+  // Phase 8
+  customers                    Customer[]
+  customerNotes                CustomerNote[]
+  reservations                 Reservation[]
+  reservationStatusHistory     ReservationStatusHistory[]
+  waitingListEntries           WaitingListEntry[]
+  loyaltyAccounts              LoyaltyAccount[]
+  loyaltyTransactions          LoyaltyTransaction[]
+  promotions                   Promotion[]
+  promotionUsages              PromotionUsage[]
+  promotionMenuItems           PromotionMenuItem[]
+  promotionMenuCategories      PromotionMenuCategory[]
+  orderDiscounts               OrderDiscount[]
+  discountRequests             DiscountRequest[]
+  // Phase 9
+  importJobs                   ImportJob[]                         @relation("importJobRestaurant")
+  uatScenarios                 UATScenario[]                       @relation("uatRestaurant")
+  // Phase 11: Procurement
+  // Phase 10: Public website
+  openingHours                 RestaurantOpeningHour[]
+  openingHourPeriods           OpeningHourPeriod[]
+  specialHours                 RestaurantSpecialHour[]
+  deliveryZones                DeliveryZone[]
+  customerAddresses            CustomerAddress[]
+  tableQrTokens                TableQrToken[]
+  publicOrderCancellations     PublicOrderCancellationRequest[]
+  publicIdempotencyKeys        PublicOrderIdempotencyKey[]
+  // Phase 12
+  // Phase 12
+  // Phase 13
+  employeeLeaveBalances        EmployeeLeaveBalance[]
+  leaveLedgerTransactions      LeaveLedgerTransaction[]
+  leaveRequests                LeaveRequest[]
+  leaveApprovals               LeaveApproval[]
+  overtimeApprovals            OvertimeApproval[]
+  payrollPeriods               PayrollPeriod[]
+  payrollComponentDefinitions  PayrollComponentDefinition[]
+  employeeRecurringComponents  EmployeeRecurringPayrollComponent[]
+  payrollRuns                  PayrollRun[]
+  payrollEmployeeLines         PayrollEmployeeLine[]
+  payrollLineItems             PayrollLineItem[]
+  payrollApprovals             PayrollApproval[]
+  payrollDisbursements         PayrollDisbursement[]
+  payslips                     Payslip[]
+  staffAdvances                StaffAdvance[]
+  staffAdvanceRepayments       StaffAdvanceRepayment[]
+  customerTips                 CustomerTip[]
+  tipPoolAllocations           TipPoolAllocation[]
+  serviceChargePools           ServiceChargePool[]
+  serviceChargeAllocations     ServiceChargeAllocation[]
+  payrollSettings              PayrollSettings?
+  leavePolicies                LeavePolicy[]
+  leaveTypes                   LeaveType[]
+  employeeCompensationProfiles EmployeeCompensationProfile[]
+  employeeEmploymentProfiles   EmployeeEmploymentProfile[]
+  tipPools                     TipPool[]
+}
+
+model RestaurantSettings {
+  id                                        String                    @id @default(uuid())
+  restaurantId                              String                    @unique
+  defaultTaxRate                            Decimal                   @default(0)
+  serviceChargeRate                         Decimal                   @default(0)
+  pricesIncludeTax                          Boolean                   @default(false)
+  allowNegativeStock                        Boolean                   @default(false)
+  receiptFooter                             String?
+  orderNumberPrefix                         String                    @default("ORD")
+  receiptNumberPrefix                       String                    @default("REC")
+  tableRequiredForDineIn                    Boolean                   @default(true)
+  tableStatusAfterOrderClosure              TableStatus               @default(CLEANING)
+  allowPartialPayments                      Boolean                   @default(true)
+  allowSplitPayments                        Boolean                   @default(true)
+  requireReferenceForCard                   Boolean                   @default(false)
+  requireReferenceForMobileMoney            Boolean                   @default(true)
+  requireReferenceForBankTransfer           Boolean                   @default(true)
+  allowPaymentBeforeServing                 Boolean                   @default(false)
+  printReceiptAutomatically                 Boolean                   @default(false)
+  receiptPaperSize                          ReceiptPaperSize          @default(THERMAL_80MM)
+  receiptShowCustomerPhone                  Boolean                   @default(false)
+  receiptShowWaiter                         Boolean                   @default(true)
+  receiptShowTaxBreakdown                   Boolean                   @default(true)
+  businessDayStartTime                      String                    @default("00:00")
+  // Shift & attendance settings
+  requireClockInForOperationalActions       Boolean                   @default(false)
+  requireOpenCashierSessionForCashPayments  Boolean                   @default(false)
+  allowUnscheduledClockIn                   Boolean                   @default(true)
+  allowEmployeeSelfClockIn                  Boolean                   @default(true)
+  allowEmployeeSelfClockOut                 Boolean                   @default(true)
+  cashVarianceApprovalThreshold             Decimal                   @default(0)
+  cashVarianceWarningThreshold              Decimal                   @default(0)
+  requireManagerApprovalForCashOut          Boolean                   @default(true)
+  requireManagerApprovalForSafeDrop         Boolean                   @default(false)
+  requireHandoverBeforeShiftClose           Boolean                   @default(false)
+  autoCloseOpenBreakOnClockOut              Boolean                   @default(true)
+  shiftClosingGraceMinutes                  Int                       @default(30)
+  // Phase 8: Loyalty settings
+  loyaltyEnabled                            Boolean                   @default(false)
+  pointsPerCurrencyUnit                     Decimal                   @default(0)
+  minimumSpendToEarnPoints                  Decimal                   @default(0)
+  loyaltyRedemptionEnabled                  Boolean                   @default(false)
+  currencyValuePerPoint                     Decimal                   @default(0)
+  minimumPointsToRedeem                     Int                       @default(0)
+  maximumRedemptionPercentage               Decimal                   @default(100)
+  loyaltyPointsExpiryMonths                 Int?
+  loyaltyPointsEarnOnDiscountedAmount       Boolean                   @default(true)
+  loyaltyPointsEarnOnTax                    Boolean                   @default(false)
+  loyaltyPointsEarnOnServiceCharge          Boolean                   @default(false)
+  // Phase 8: Reservation settings
+  reservationsEnabled                       Boolean                   @default(true)
+  defaultReservationDurationMinutes         Int                       @default(120)
+  reservationArrivalGraceMinutes            Int                       @default(15)
+  reservationLateHoldingMinutes             Int                       @default(15)
+  requirePhoneForReservation                Boolean                   @default(true)
+  requireCustomerProfileForReservation      Boolean                   @default(false)
+  allowTableOverbooking                     Boolean                   @default(false)
+  allowReservationWithoutTable              Boolean                   @default(true)
+  reservationReminderMinutes                Int?
+  waitingListEnabled                        Boolean                   @default(true)
+  defaultWaitingEstimateMinutes             Int                       @default(20)
+  // Phase 8: Discount settings
+  allowPromotionStacking                    Boolean                   @default(false)
+  allowLoyaltyWithPromotions                Boolean                   @default(true)
+  allowManualDiscountWithPromotions         Boolean                   @default(false)
+  maximumTotalDiscountPercentage            Decimal                   @default(100)
+  requireManagerApprovalForManualDiscount   Boolean                   @default(true)
+  manualDiscountApprovalThresholdPercentage Decimal                   @default(10)
+  // Phase 10: Public website & ordering settings
+  publicWebsiteEnabled                      Boolean                   @default(false)
+  publicOrderingEnabled                     Boolean                   @default(false)
+  publicReservationsEnabled                 Boolean                   @default(false)
+  qrTableOrderingEnabled                    Boolean                   @default(false)
+  pickupEnabled                             Boolean                   @default(true)
+  deliveryEnabled                           Boolean                   @default(false)
+  dineInQrOrderingEnabled                   Boolean                   @default(false)
+  publicRestaurantDescription               String?
+  publicHeroImageUrl                        String?
+  publicLogoUrl                             String?
+  publicContactPhone                        String?
+  publicContactEmail                        String?
+  publicAddress                             String?
+  publicMapUrl                              String?
+  publicFacebookUrl                         String?
+  publicInstagramUrl                        String?
+  publicXUrl                                String?
+  publicWhatsAppNumber                      String?
+  publicMinimumOrderAmount                  Decimal                   @default(0)
+  pickupPreparationMinutes                  Int                       @default(30)
+  deliveryPreparationMinutes                Int                       @default(45)
+  publicOrderAcceptanceMode                 PublicOrderAcceptanceMode @default(MANUAL)
+  allowGuestCheckout                        Boolean                   @default(true)
+  requirePhoneForPublicOrder                Boolean                   @default(true)
+  requireEmailForPublicOrder                Boolean                   @default(false)
+  publicOrderNotesEnabled                   Boolean                   @default(true)
+  publicMenuShowPrices                      Boolean                   @default(true)
+  publicMenuShowAvailability                Boolean                   @default(true)
+  publicMenuShowPreparationTime             Boolean                   @default(false)
+  publicMenuShowAllergenNotice              Boolean                   @default(true)
+  publicOrderAutoAccept                     Boolean                   @default(false)
+  // QR ordering settings
+  qrOrderRequiresCustomerName               Boolean                   @default(false)
+  qrOrderRequiresPhone                      Boolean                   @default(false)
+  qrOrderRequiresWaiterApproval             Boolean                   @default(true)
+  qrOrderAllowsAdditionalItems              Boolean                   @default(true)
+  // Public reservation settings
+  publicReservationAutoConfirm              Boolean                   @default(false)
+  publicReservationMaximumPartySize         Int?
+  publicReservationMinimumLeadMinutes       Int                       @default(60)
+  publicReservationMaximumDaysAhead         Int                       @default(90)
+  publicReservationRequireDiningArea        Boolean                   @default(false)
+  publicReservationAllowTableSelection      Boolean                   @default(false)
+  // Order capacity settings
+  publicMaximumActiveOrders                 Int?
+  publicMaximumOrdersPerTimeSlot            Int?
+  publicOrderSlotMinutes                    Int                       @default(15)
+  publicMaximumAdvanceOrderDays             Int                       @default(7)
+  publicPauseOrdering                       Boolean                   @default(false)
+  publicPauseOrderingReason                 String?
+  createdAt                                 DateTime                  @default(now())
+  updatedAt                                 DateTime                  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model User {
+  id                  String     @id @default(uuid())
+  restaurantId        String
+  firstName           String
+  lastName            String
+  email               String     @unique
+  phone               String?
+  employeeCode        String?
+  passwordHash        String
+  status              UserStatus @default(ACTIVE)
+  mustChangePassword  Boolean    @default(false)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  restaurant                         Restaurant                          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  roles                              UserRole[]
+  auditLogs                          AuditLog[]
+  stockMovements                     StockMovement[]                     @relation("actorStockMovements")
+  attributedStockMovements           StockMovement[]                     @relation("waiterStockMovements")
+  ordersAsWaiter                     Order[]                             @relation("waiterOrders")
+  ordersAsClosedBy                   Order[]                             @relation("closedOrders")
+  ordersAsCreatedBy                  Order[]                             @relation("createdOrders")
+  ordersAsCancelledBy                Order[]                             @relation("cancelledOrders")
+  paymentRequestedOrders             Order[]                             @relation("orderPaymentRequests")
+  paymentsReceived                   Payment[]                           @relation("receivedPayments")
+  paymentsVoided                     Payment[]                           @relation("voidedPayments")
+  receiptsIssued                     Receipt[]                           @relation("issuedReceipts")
+  receiptsVoided                     Receipt[]                           @relation("voidedReceipts")
+  refundRequestsCreated              RefundRequest[]                     @relation("requestedRefunds")
+  refundRequestsApproved             RefundRequest[]                     @relation("approvedRefunds")
+  refundRequestsRejected             RefundRequest[]                     @relation("rejectedRefunds")
+  paymentRequests                    PaymentRequest[]                    @relation("requestedPayments")
+  paymentRequestCancellers           PaymentRequest[]                    @relation("cancelledPayments")
+  refreshTokens                      RefreshToken[]
+  notifications                      AppNotification[]                   @relation("userNotifications")
+  ticketsAssigned                    KitchenTicket[]                     @relation("assignedChefTickets")
+  shiftAssignments                   ShiftAssignment[]
+  attendanceEvents                   AttendanceEvent[]
+  employeeBreaksStarted              EmployeeBreak[]                     @relation("breakStarters")
+  employeeBreaksEnded                EmployeeBreak[]                     @relation("breakEnders")
+  openedShifts                       WorkShift[]                         @relation("openedWorkShifts")
+  closedShifts                       WorkShift[]                         @relation("closedWorkShifts")
+  cancelledShifts                    WorkShift[]                         @relation("cancelledWorkShifts")
+  createdShifts                      WorkShift[]                         @relation("createdWorkShifts")
+  cashierSessionsOpened              CashierSession[]                    @relation("cashierSessions")
+  sessionsOpened                     CashierSession[]                    @relation("openedSessions")
+  cashierSessionsApproved            CashierSession[]                    @relation("approvedSessions")
+  cashierSessionsRejected            CashierSession[]                    @relation("rejectedSessions")
+  cashierSessionsClosed              CashierSession[]                    @relation("closedSessions")
+  cashDrawerMovements                CashDrawerMovement[]
+  cashDrawerMovementsApproved        CashDrawerMovement[]                @relation("approvedDrawerMovements")
+  shiftHandoversFrom                 ShiftHandover[]                     @relation("handoverFrom")
+  shiftHandoversTo                   ShiftHandover[]                     @relation("handoverTo")
+  shiftHandoversAcknowledged         ShiftHandover[]                     @relation("handoverAcknowledged")
+  shiftExceptionsRaised              ShiftException[]                    @relation("raisedExceptions")
+  orderItemCancellers                OrderItem[]                         @relation("cancelledOrderItems")
+  correctedAssignments               ShiftAssignment[]                   @relation("correctedAssignments")
+  shiftExceptionsReviewed            ShiftException[]                    @relation("reviewedExceptions")
+  // Phase 8: Customer relations
+  customersCreated                   Customer[]                          @relation("customerCreatedBy")
+  customerNotesCreated               CustomerNote[]                      @relation("customerNoteCreatedBy")
+  // Phase 8: Reservation relations
+  reservationsConfirmed              Reservation[]                       @relation("reservationConfirmedBy")
+  reservationsCheckedIn              Reservation[]                       @relation("reservationCheckedInBy")
+  reservationsSeated                 Reservation[]                       @relation("reservationSeatedBy")
+  reservationsCancelled              Reservation[]                       @relation("reservationCancelledBy")
+  reservationsNoShowMarked           Reservation[]                       @relation("reservationNoShowMarkedBy")
+  reservationsCreated                Reservation[]                       @relation("reservationCreatedBy")
+  reservationStatusHistory           ReservationStatusHistory[]          @relation("statusHistoryChangedBy")
+  // Phase 8: Waiting list relations
+  waitingListCreated                 WaitingListEntry[]                  @relation("waitingListCreatedBy")
+  waitingListUpdated                 WaitingListEntry[]                  @relation("waitingListUpdatedBy")
+  // Phase 8: Promotion relations
+  promotionsCreated                  Promotion[]                         @relation("promotionCreatedBy")
+  promotionUsageCreated              PromotionUsage[]                    @relation("promotionUsageCreatedBy")
+  // Phase 8: Discount relations
+  discountsApplied                   OrderDiscount[]                     @relation("discountAppliedBy")
+  discountsApproved                  OrderDiscount[]                     @relation("discountApprovedBy")
+  discountRequestsCreated            DiscountRequest[]                   @relation("discountRequestRequestedBy")
+  discountRequestsReviewed           DiscountRequest[]                   @relation("discountRequestReviewedBy")
+  // Phase 9: Import & UAT relations
+  importJobsRequested                ImportJob[]                         @relation("importJobRequestedBy")
+  uatAssignedScenarios               UATScenario[]                       @relation("uatAssignedTo")
+  uatTestedScenarios                 UATScenario[]                       @relation("uatTestedBy")
+  PublicOrderCancellationRequest     PublicOrderCancellationRequest[]
+  // Phase 13
+  employmentProfiles                 EmployeeEmploymentProfile[]
+  // Phase 13
+  compensationProfiles               EmployeeCompensationProfile[]       @relation("compensationUser")
+  serviceChargeAllocations           ServiceChargeAllocation[]
+  serviceChargePools                 ServiceChargePool[]                 @relation("userServiceChargePool")
+  tipPoolAllocations                 TipPoolAllocation[]
+  tipPools                           TipPool[]                           @relation("userTipPool")
+  customerTips                       CustomerTip[]                       @relation("userCustomerTip")
+  staffAdvanceRepayments             StaffAdvanceRepayment[]
+  staffAdvances                      StaffAdvance[]
+  payslips                           Payslip[]
+  payrollDisbursements               PayrollDisbursement[]
+  payrollApprovals                   PayrollApproval[]                   @relation("userPayrollApproval")
+  payrollEmployeeLines               PayrollEmployeeLine[]
+  payrollRuns                        PayrollRun[]                        @relation("userPayrollRun")
+  employeeRecurringPayrollComponents EmployeeRecurringPayrollComponent[]
+  overtimeApprovals                  OvertimeApproval[]
+  leaveApprovals                     LeaveApproval[]                     @relation("userLeaveApproval")
+  leaveRequests                      LeaveRequest[]
+  leaveLedgerTransactions            LeaveLedgerTransaction[]
+  employeeLeaveBalances              EmployeeLeaveBalance[]
+
+  compensationCreatedBy       EmployeeCompensationProfile[]       @relation("compensationCreatedBy")
+  compensationApprovedBy      EmployeeCompensationProfile[]       @relation("compensationApprovedBy")
+  ledgerCreatedBy             LeaveLedgerTransaction[]            @relation("ledgerCreatedBy")
+  leaveApprovedBy             LeaveRequest[]                      @relation("leaveApprovedBy")
+  leaveRejectedBy             LeaveRequest[]                      @relation("leaveRejectedBy")
+  leaveCancelledBy            LeaveRequest[]                      @relation("leaveCancelledBy")
+  leaveApprovalRequestedBy    LeaveApproval[]                     @relation("leaveApprovalRequestedBy")
+  leaveApprovalReviewedBy     LeaveApproval[]                     @relation("leaveApprovalReviewedBy")
+  overtimeRequestedBy         OvertimeApproval[]                  @relation("overtimeRequestedBy")
+  overtimeReviewedBy          OvertimeApproval[]                  @relation("overtimeReviewedBy")
+  recurringComponentCreatedBy EmployeeRecurringPayrollComponent[] @relation("recurringComponentCreatedBy")
+  payrollRunCreatedBy         PayrollRun[]                        @relation("payrollRunCreatedBy")
+  payrollRunCalculatedBy      PayrollRun[]                        @relation("payrollRunCalculatedBy")
+  payrollRunApprovedBy        PayrollRun[]                        @relation("payrollRunApprovedBy")
+  payrollRunFinalizedBy       PayrollRun[]                        @relation("payrollRunFinalizedBy")
+  payrollLineApprovedBy       PayrollEmployeeLine[]               @relation("payrollLineApprovedBy")
+  payrollApprovalRequestedBy  PayrollApproval[]                   @relation("payrollApprovalRequestedBy")
+  payrollApprovalReviewedBy   PayrollApproval[]                   @relation("payrollApprovalReviewedBy")
+  disbursementPostedBy        PayrollDisbursement[]               @relation("disbursementPostedBy")
+  disbursementReversedBy      PayrollDisbursement[]               @relation("disbursementReversedBy")
+  payslipIssuedBy             Payslip[]                           @relation("payslipIssuedBy")
+  payslipVoidedBy             Payslip[]                           @relation("payslipVoidedBy")
+  advanceRequestedBy          StaffAdvance[]                      @relation("advanceRequestedBy")
+  advanceApprovedBy           StaffAdvance[]                      @relation("advanceApprovedBy")
+  advanceRejectedBy           StaffAdvance[]                      @relation("advanceRejectedBy")
+  advanceDisbursedBy          StaffAdvance[]                      @relation("advanceDisbursedBy")
+  advanceWrittenOffBy         StaffAdvance[]                      @relation("advanceWrittenOffBy")
+  repaymentRecordedBy         StaffAdvanceRepayment[]             @relation("repaymentRecordedBy")
+  repaymentReversedBy         StaffAdvanceRepayment[]             @relation("repaymentReversedBy")
+  tipRecordedBy               CustomerTip[]                       @relation("tipRecordedBy")
+  tipReversedBy               CustomerTip[]                       @relation("tipReversedBy")
+  tipDirectRecipient          CustomerTip[]                       @relation("tipDirectRecipient")
+  tipPoolCreatedBy            TipPool[]                           @relation("tipPoolCreatedBy")
+  tipPoolCalculatedBy         TipPool[]                           @relation("tipPoolCalculatedBy")
+  tipPoolApprovedBy           TipPool[]                           @relation("tipPoolApprovedBy")
+  scPoolCreatedBy             ServiceChargePool[]                 @relation("scPoolCreatedBy")
+  scPoolCalculatedBy          ServiceChargePool[]                 @relation("scPoolCalculatedBy")
+  scPoolApprovedBy            ServiceChargePool[]                 @relation("scPoolApprovedBy")
+
+  @@index([restaurantId])
+  @@index([email])
+  @@index([employeeCode])
+  @@index([status])
+}
+
+model Role {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  description  String?
+  isSystemRole Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users UserRole[]
+}
+
+model UserRole {
+  userId       String
+  roleId       String
+  assignedAt   DateTime @default(now())
+  assignedById String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+// ==========================================
+// REFRESH TOKENS (Phase 1)
+// ==========================================
+
+model RefreshToken {
+  id           String    @id @default(uuid())
+  restaurantId String
+  userId       String
+  tokenHash    String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  userAgent    String?
+  ipAddress    String?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@index([restaurantId])
+}
+
+// ==========================================
+// AUDIT
+// ==========================================
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  restaurantId String
+  userId       String?
+  action       String
+  entityType   String
+  entityId     String?
+  description  String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  user       User?      @relation(fields: [userId], references: [id])
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+// ==========================================
+// DINING & TABLES (Phase 2)
+// ==========================================
+
+model DiningArea {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant       Restaurant         @relation(fields: [restaurantId], references: [id])
+  tables           RestaurantTable[]
+  customers        Customer[]         @relation("customerPreferredDiningArea")
+  reservations     Reservation[]
+  WaitingListEntry WaitingListEntry[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+}
+
+model RestaurantTable {
+  id           String      @id @default(uuid())
+  restaurantId String
+  diningAreaId String?
+  name         String
+  code         String
+  capacity     Int
+  shape        TableShape  @default(ROUND)
+  status       TableStatus @default(AVAILABLE)
+  positionX    Int?
+  positionY    Int?
+  displayOrder Int         @default(0)
+  isActive     Boolean     @default(true)
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  restaurant         Restaurant         @relation(fields: [restaurantId], references: [id])
+  diningArea         DiningArea?        @relation(fields: [diningAreaId], references: [id])
+  orders             Order[]
+  customers          Customer[]         @relation("customerPreferredTable")
+  waitingListEntries WaitingListEntry[]
+  reservations       Reservation[]
+  TableQrToken       TableQrToken[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([diningAreaId])
+  @@index([status])
+  @@index([isActive])
+}
+
+// ==========================================
+// MENU (Phase 2)
+// ==========================================
+
+model MenuCategory {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  imageUrl     String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant              Restaurant              @relation(fields: [restaurantId], references: [id])
+  items                   MenuItem[]
+  promotionMenuCategories PromotionMenuCategory[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+}
+
+model KitchenStation {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id])
+  menuItems  MenuItem[]
+  tickets    KitchenTicket[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+}
+
+model MenuItem {
+  id                     String       @id @default(uuid())
+  restaurantId           String
+  categoryId             String?
+  kitchenStationId       String?
+  name                   String
+  code                   String
+  description            String?
+  itemType               MenuItemType @default(FOOD)
+  price                  Decimal
+  costPrice              Decimal?
+  taxRate                Decimal      @default(0)
+  preparationTimeMinutes Int?
+  requiresPreparation    Boolean      @default(true)
+  trackInventory         Boolean      @default(false)
+  isAvailable            Boolean      @default(true)
+  isActive               Boolean      @default(true)
+  imageUrl               String?
+  displayOrder           Int          @default(0)
+  // Phase 10: Public menu fields
+  publicDescription      String?
+  publicImageUrl         String?
+  isFeatured             Boolean      @default(false)
+  isPubliclyVisible      Boolean      @default(true)
+  dietaryLabels          String?
+  allergenInformation    String?
+  publicSortOrder        Int          @default(0)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  restaurant            Restaurant                     @relation(fields: [restaurantId], references: [id])
+  category              MenuCategory?                  @relation(fields: [categoryId], references: [id])
+  kitchenStation        KitchenStation?                @relation(fields: [kitchenStationId], references: [id])
+  orderItems            OrderItem[]
+  availabilitySchedules MenuItemAvailabilitySchedule[]
+  recipes               Recipe[]
+  promotionMenuItems    PromotionMenuItem[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([categoryId])
+  @@index([kitchenStationId])
+  @@index([isAvailable])
+  @@index([isActive])
+  @@index([itemType])
+}
+
+model MenuItemAvailabilitySchedule {
+  id         String    @id @default(uuid())
+  menuItemId String
+  dayOfWeek  DayOfWeek
+  startTime  String // HH:mm format
+  endTime    String // HH:mm format
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, dayOfWeek, startTime])
+  @@index([menuItemId])
+}
+
+// ==========================================
+// ORDERS (Phase 3)
+// ==========================================
+
+model Order {
+  id                   String             @id @default(uuid())
+  restaurantId         String
+  orderNumber          String
+  orderType            OrderType          @default(DINE_IN)
+  status               OrderStatus        @default(DRAFT)
+  paymentStatus        OrderPaymentStatus @default(UNPAID)
+  tableId              String?
+  guestCount           Int?
+  customerName         String?
+  customerPhone        String?
+  notes                String?
+  subtotal             Decimal            @default(0)
+  taxAmount            Decimal            @default(0)
+  serviceCharge        Decimal            @default(0)
+  discountAmount       Decimal            @default(0)
+  totalAmount          Decimal            @default(0)
+  amountPaid           Decimal            @default(0)
+  amountDue            Decimal            @default(0)
+  submittedAt          DateTime?
+  preparationStartedAt DateTime?
+  readyAt              DateTime?
+  servedAt             DateTime?
+  paymentRequestedAt   DateTime?
+  paymentRequestedById String?
+  cancelledAt          DateTime?
+  cancelledById        String?
+  cancellationReason   String?
+  closedAt             DateTime?
+  closedById           String?
+  createdById          String
+  waiterId             String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  restaurant                     Restaurant                       @relation(fields: [restaurantId], references: [id])
+  table                          RestaurantTable?                 @relation(fields: [tableId], references: [id])
+  paymentRequestedBy             User?                            @relation("orderPaymentRequests", fields: [paymentRequestedById], references: [id])
+  cancelledBy                    User?                            @relation("cancelledOrders", fields: [cancelledById], references: [id])
+  closedBy                       User?                            @relation("closedOrders", fields: [closedById], references: [id])
+  createdBy                      User                             @relation("createdOrders", fields: [createdById], references: [id])
+  waiter                         User                             @relation("waiterOrders", fields: [waiterId], references: [id])
+  items                          OrderItem[]
+  payments                       Payment[]
+  refundRequests                 RefundRequest[]
+  receipts                       Receipt[]
+  paymentRequests                PaymentRequest[]
+  kitchenTickets                 KitchenTicket[]
+  customerId                     String?
+  totalBeforeDiscount            Decimal                          @default(0)
+  loyaltyPointsEarned            Int                              @default(0)
+  loyaltyPointsRedeemed          Int                              @default(0)
+  loyaltyRedemptionValue         Decimal                          @default(0)
+  notifications                  AppNotification[]
+  orderDiscounts                 OrderDiscount[]
+  promotionUsages                PromotionUsage[]
+  loyaltyTransactions            LoyaltyTransaction[]
+  reservations                   Reservation[]
+  DiscountRequest                DiscountRequest[]
+  // Phase 10: Public order fields
+  publicReference                String?                          @unique
+  publicAccessTokenHash          String?
+  publicOrderStatus              PublicOrderStatus?
+  publicOrderSource              PublicOrderSource?
+  customerEmailSnapshot          String?
+  pickupTimeRequested            DateTime?
+  deliveryAddressId              String?
+  deliveryAddressSnapshot        Json?
+  deliveryZoneId                 String?
+  deliveryFee                    Decimal                          @default(0)
+  deliveryInstructions           String?
+  publicOrderNotes               String?
+  acceptedAt                     DateTime?
+  acceptedById                   String?
+  rejectedAt                     DateTime?
+  rejectedById                   String?
+  rejectionReason                String?
+  dispatchedAt                   DateTime?
+  deliveredAt                    DateTime?
+  deliveryAssignedToId           String?
+  publicPaymentChoice            PublicPaymentChoice?
+  manualPaymentProvider          String?
+  manualPaymentReference         String?
+  PublicOrderCancellationRequest PublicOrderCancellationRequest[]
+
+  @@unique([restaurantId, orderNumber])
+  @@index([restaurantId])
+  @@index([tableId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([waiterId])
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, closedAt])
+  @@index([restaurantId, waiterId, closedAt])
+  @@index([restaurantId, status, createdAt])
+  @@index([restaurantId, paymentStatus, createdAt])
+  @@index([restaurantId, tableId, closedAt])
+  @@index([restaurantId, publicOrderStatus])
+}
+
+model OrderItem {
+  id                   String          @id @default(uuid())
+  orderId              String
+  menuItemId           String
+  kitchenStationId     String?
+  menuItemNameSnapshot String
+  menuItemCodeSnapshot String
+  itemTypeSnapshot     MenuItemType    @default(FOOD)
+  unitPrice            Decimal
+  taxRate              Decimal         @default(0)
+  quantity             Int
+  lineSubtotal         Decimal
+  lineTaxAmount        Decimal         @default(0)
+  lineTotal            Decimal
+  specialInstructions  String?
+  requiresPreparation  Boolean         @default(true)
+  status               OrderItemStatus @default(DRAFT)
+  submittedAt          DateTime?
+  acceptedAt           DateTime?
+  preparationStartedAt DateTime?
+  readyAt              DateTime?
+  servedAt             DateTime?
+  cancelledAt          DateTime?
+  cancelledById        String?
+  cancellationReason   String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  order                   Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem                MenuItem           @relation(fields: [menuItemId], references: [id])
+  cancelledBy             User?              @relation("cancelledOrderItems", fields: [cancelledById], references: [id])
+  kitchenTicketItem       KitchenTicketItem?
+  lineDiscountAmount      Decimal            @default(0)
+  lineTotalBeforeDiscount Decimal            @default(0)
+  OrderDiscount           OrderDiscount[]
+  DiscountRequest         DiscountRequest[]
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([kitchenStationId])
+  @@index([status])
+  @@index([menuItemId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ==========================================
+// KITCHEN TICKETS (Phase 3)
+// ==========================================
+
+model KitchenTicket {
+  id                   String              @id @default(uuid())
+  restaurantId         String
+  orderId              String
+  kitchenStationId     String
+  ticketNumber         String
+  status               KitchenTicketStatus @default(NEW)
+  assignedChefId       String?
+  createdAt            DateTime            @default(now())
+  acceptedAt           DateTime?
+  preparationStartedAt DateTime?
+  readyAt              DateTime?
+  cancelledAt          DateTime?
+  updatedAt            DateTime            @updatedAt
+
+  restaurant     Restaurant          @relation(fields: [restaurantId], references: [id])
+  order          Order               @relation(fields: [orderId], references: [id])
+  kitchenStation KitchenStation      @relation(fields: [kitchenStationId], references: [id])
+  assignedChef   User?               @relation("assignedChefTickets", fields: [assignedChefId], references: [id])
+  items          KitchenTicketItem[]
+
+  @@unique([restaurantId, ticketNumber])
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([kitchenStationId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([restaurantId, kitchenStationId, createdAt])
+  @@index([restaurantId, status, createdAt])
+  @@index([assignedChefId, createdAt])
+}
+
+model KitchenTicketItem {
+  id              String   @id @default(uuid())
+  kitchenTicketId String
+  orderItemId     String   @unique
+  createdAt       DateTime @default(now())
+
+  kitchenTicket KitchenTicket @relation(fields: [kitchenTicketId], references: [id], onDelete: Cascade)
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@index([kitchenTicketId])
+  @@index([orderItemId])
+}
+
+// ==========================================
+// NOTIFICATIONS (Phase 3)
+// ==========================================
+
+model AppNotification {
+  id           String           @id @default(uuid())
+  restaurantId String
+  userId       String
+  type         NotificationType
+  title        String
+  message      String?
+  orderId      String?
+  entityType   String?
+  entityId     String?
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
+
+  order      Order?     @relation(fields: [orderId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  user       User       @relation("userNotifications", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([restaurantId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([orderId])
+}
+
+// ==========================================
+// PAYMENT (Phase 5)
+// ==========================================
+
+model Payment {
+  id               String                 @id @default(uuid())
+  restaurantId     String
+  orderId          String
+  paymentNumber    String
+  transactionType  PaymentTransactionType @default(PAYMENT)
+  method           PaymentMethod
+  status           PaymentStatus          @default(PENDING)
+  amount           Decimal
+  amountTendered   Decimal?
+  changeAmount     Decimal                @default(0)
+  referenceNumber  String?
+  providerName     String?
+  notes            String?
+  receivedById     String
+  parentPaymentId  String?
+  idempotencyKey   String?
+  cashierSessionId String?
+  completedAt      DateTime?
+  failedAt         DateTime?
+  voidedAt         DateTime?
+  voidedById       String?
+  voidReason       String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  restaurant          Restaurant           @relation(fields: [restaurantId], references: [id])
+  order               Order                @relation(fields: [orderId], references: [id])
+  receivedBy          User                 @relation("receivedPayments", fields: [receivedById], references: [id])
+  voidedBy            User?                @relation("voidedPayments", fields: [voidedById], references: [id])
+  parentPayment       Payment?             @relation("childPayments", fields: [parentPaymentId], references: [id])
+  childPayments       Payment[]            @relation("childPayments")
+  refundRequests      RefundRequest[]
+  receiptPayments     ReceiptPayment[]
+  cashierSession      CashierSession?      @relation(fields: [cashierSessionId], references: [id])
+  cashDrawerMovements CashDrawerMovement[]
+
+  @@unique([restaurantId, paymentNumber])
+  @@index([idempotencyKey])
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([method])
+  @@index([status])
+  @@index([transactionType])
+  @@index([receivedById])
+  @@index([completedAt])
+  @@index([createdAt])
+  @@index([cashierSessionId])
+  @@index([restaurantId, completedAt])
+  @@index([restaurantId, method, completedAt])
+  @@index([restaurantId, receivedById, completedAt])
+  @@index([restaurantId, status, transactionType, completedAt])
+}
+
+// ==========================================
+// RECEIPTS (Phase 5)
+// ==========================================
+
+model Receipt {
+  id                        String        @id @default(uuid())
+  restaurantId              String
+  orderId                   String
+  receiptNumber             String
+  status                    ReceiptStatus @default(ISSUED)
+  currency                  String
+  restaurantNameSnapshot    String
+  restaurantEmailSnapshot   String?
+  restaurantPhoneSnapshot   String?
+  restaurantAddressSnapshot String?
+  restaurantLogoUrlSnapshot String?
+  orderNumberSnapshot       String
+  orderTypeSnapshot         String
+  tableNameSnapshot         String?
+  tableCodeSnapshot         String?
+  waiterNameSnapshot        String
+  customerNameSnapshot      String?
+  customerPhoneSnapshot     String?
+  subtotal                  Decimal
+  taxAmount                 Decimal
+  serviceChargeAmount       Decimal
+  discountAmount            Decimal
+  totalAmount               Decimal
+  amountPaid                Decimal
+  changeAmount              Decimal
+  receiptFooterSnapshot     String?
+  issuedById                String
+  issuedAt                  DateTime      @default(now())
+  voidedAt                  DateTime?
+  voidedById                String?
+  voidReason                String?
+  reprintCount              Int           @default(0)
+  lastReprintedAt           DateTime?
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id])
+  order      Order            @relation(fields: [orderId], references: [id])
+  issuedBy   User             @relation("issuedReceipts", fields: [issuedById], references: [id])
+  voidedBy   User?            @relation("voidedReceipts", fields: [voidedById], references: [id])
+  lines      ReceiptLine[]
+  payments   ReceiptPayment[]
+
+  @@unique([restaurantId, receiptNumber])
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([issuedById])
+  @@index([issuedAt])
+  @@index([status])
+  @@index([restaurantId, issuedAt])
+  @@index([restaurantId, issuedById, issuedAt])
+}
+
+model ReceiptLine {
+  id                  String   @id @default(uuid())
+  receiptId           String
+  orderItemId         String?
+  itemNameSnapshot    String
+  itemCodeSnapshot    String
+  quantity            Int
+  unitPrice           Decimal
+  lineSubtotal        Decimal
+  lineTaxAmount       Decimal
+  lineTotal           Decimal
+  specialInstructions String?
+  createdAt           DateTime @default(now())
+
+  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
+}
+
+model ReceiptPayment {
+  id              String        @id @default(uuid())
+  receiptId       String
+  paymentId       String
+  method          PaymentMethod
+  amount          Decimal
+  referenceNumber String?
+  createdAt       DateTime      @default(now())
+
+  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@unique([receiptId, paymentId])
+  @@index([receiptId])
+  @@index([paymentId])
+}
+
+// ==========================================
+// PAYMENT REQUESTS (Phase 5)
+// ==========================================
+
+model PaymentRequest {
+  id            String    @id @default(uuid())
+  restaurantId  String
+  orderId       String
+  requestedById String
+  cancelledAt   DateTime?
+  cancelledById String?
+  createdAt     DateTime  @default(now())
+
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  order       Order      @relation(fields: [orderId], references: [id])
+  requestedBy User       @relation("requestedPayments", fields: [requestedById], references: [id])
+  cancelledBy User?      @relation("cancelledPayments", fields: [cancelledById], references: [id])
+
+  @@unique([orderId])
+  @@index([restaurantId])
+  @@index([orderId])
+}
+
+// ==========================================
+// REFUND REQUESTS (Phase 5)
+// ==========================================
+
+model RefundRequest {
+  id              String              @id @default(uuid())
+  restaurantId    String
+  orderId         String
+  paymentId       String
+  requestedAmount Decimal
+  reason          String
+  requestedById   String
+  approvedById    String?
+  rejectedById    String?
+  status          RefundRequestStatus @default(PENDING)
+  requestedAt     DateTime            @default(now())
+  resolvedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  order       Order      @relation(fields: [orderId], references: [id])
+  payment     Payment    @relation(fields: [paymentId], references: [id])
+  requestedBy User       @relation("requestedRefunds", fields: [requestedById], references: [id])
+  approvedBy  User?      @relation("approvedRefunds", fields: [approvedById], references: [id])
+  rejectedBy  User?      @relation("rejectedRefunds", fields: [rejectedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([status])
+}
+
+// ==========================================
+// INVENTORY (Phase 4)
+// ==========================================
+
+model StockLocation {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  code         String
+  description  String?
+  locationType String?
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant             Restaurant              @relation(fields: [restaurantId], references: [id])
+  inventoryBalances      InventoryBalance[]
+  stockReceipts          StockReceipt[]
+  stockBatches           StockBatch[]
+  stockMovements         StockMovement[]
+  stockReservations      StockReservation[]
+  inventoryAlerts        InventoryAlert[]
+  menuItemInventoryLinks MenuItemInventoryLink[]
+  recipeIngredients      RecipeIngredient[]
+
+  @@unique([restaurantId, name])
+  @@unique([restaurantId, code])
+  @@index([restaurantId, isActive])
+}
+
+model InventoryCategory {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id])
+  inventoryItems InventoryItem[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId, isActive])
+}
+
+model InventoryItem {
+  id               String        @id @default(uuid())
+  restaurantId     String
+  categoryId       String?
+  name             String
+  sku              String
+  barcode          String?
+  description      String?
+  baseUnit         InventoryUnit
+  reorderLevel     Decimal       @default(0)
+  targetStockLevel Decimal?
+  lastPurchaseCost Decimal?
+  averageCost      Decimal?
+  trackExpiry      Boolean       @default(false)
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  restaurant             Restaurant              @relation(fields: [restaurantId], references: [id])
+  category               InventoryCategory?      @relation(fields: [categoryId], references: [id])
+  inventoryBalances      InventoryBalance[]
+  stockBatches           StockBatch[]
+  stockMovements         StockMovement[]
+  stockReservations      StockReservation[]
+  inventoryAlerts        InventoryAlert[]
+  recipeIngredients      RecipeIngredient[]
+  menuItemInventoryLinks MenuItemInventoryLink[]
+  stockReceiptLines      StockReceiptLine[]
+
+  @@unique([restaurantId, sku])
+  @@unique([restaurantId, barcode])
+  @@index([restaurantId, isActive])
+  @@index([categoryId])
+}
+
+model InventoryBalance {
+  id               String   @id @default(uuid())
+  restaurantId     String
+  inventoryItemId  String
+  stockLocationId  String
+  onHandQuantity   Decimal  @default(0)
+  reservedQuantity Decimal  @default(0)
+  updatedAt        DateTime @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation @relation(fields: [stockLocationId], references: [id])
+
+  @@unique([inventoryItemId, stockLocationId])
+  @@index([restaurantId])
+  @@index([inventoryItemId])
+  @@index([stockLocationId])
+}
+
+model Supplier {
+  id            String   @id @default(uuid())
+  restaurantId  String
+  name          String
+  supplierCode  String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  notes         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  stockReceipts StockReceipt[]
+
+  @@unique([restaurantId, supplierCode])
+  @@index([restaurantId, isActive])
+}
+
+model StockReceipt {
+  id                 String             @id @default(uuid())
+  restaurantId       String
+  receiptNumber      String
+  supplierId         String?
+  stockLocationId    String
+  status             StockReceiptStatus @default(DRAFT)
+  supplierReference  String?
+  receiptDate        DateTime
+  notes              String?
+  subtotalCost       Decimal            @default(0)
+  totalCost          Decimal            @default(0)
+  createdById        String
+  postedById         String?
+  postedAt           DateTime?
+  cancelledById      String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  restaurant    Restaurant         @relation(fields: [restaurantId], references: [id])
+  supplier      Supplier?          @relation(fields: [supplierId], references: [id])
+  stockLocation StockLocation      @relation(fields: [stockLocationId], references: [id])
+  lines         StockReceiptLine[]
+
+  @@unique([restaurantId, receiptNumber])
+  @@index([restaurantId, status])
+  @@index([supplierId])
+  @@index([stockLocationId])
+  @@index([receiptDate])
+}
+
+model StockReceiptLine {
+  id              String    @id @default(uuid())
+  stockReceiptId  String
+  inventoryItemId String
+  quantity        Decimal
+  unitCost        Decimal
+  lineCost        Decimal
+  batchNumber     String?
+  manufactureDate DateTime?
+  expiryDate      DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  stockReceipt  StockReceipt  @relation(fields: [stockReceiptId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([stockReceiptId])
+  @@index([inventoryItemId])
+}
+
+model StockBatch {
+  id                 String    @id @default(uuid())
+  restaurantId       String
+  inventoryItemId    String
+  stockLocationId    String
+  stockReceiptLineId String?
+  batchNumber        String?
+  expiryDate         DateTime?
+  receivedQuantity   Decimal
+  remainingQuantity  Decimal
+  unitCost           Decimal
+  receivedAt         DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation @relation(fields: [stockLocationId], references: [id])
+
+  @@index([inventoryItemId, stockLocationId])
+  @@index([inventoryItemId, expiryDate])
+  @@index([remainingQuantity])
+}
+
+model Recipe {
+  id            String   @id @default(uuid())
+  restaurantId  String
+  menuItemId    String
+  name          String
+  yieldQuantity Decimal  @default(1)
+  notes         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant  Restaurant         @relation(fields: [restaurantId], references: [id])
+  menuItem    MenuItem           @relation(fields: [menuItemId], references: [id])
+  ingredients RecipeIngredient[]
+
+  @@index([restaurantId])
+  @@index([menuItemId])
+}
+
+model RecipeIngredient {
+  id                String   @id @default(uuid())
+  recipeId          String
+  inventoryItemId   String
+  stockLocationId   String?
+  quantityRequired  Decimal
+  wastagePercentage Decimal  @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  recipe        Recipe         @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation? @relation(fields: [stockLocationId], references: [id])
+
+  @@unique([recipeId, inventoryItemId])
+  @@index([recipeId])
+  @@index([inventoryItemId])
+}
+
+model MenuItemInventoryLink {
+  id              String   @id @default(uuid())
+  restaurantId    String
+  menuItemId      String
+  inventoryItemId String
+  stockLocationId String?
+  quantityPerSale Decimal
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  inventoryItem InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation? @relation(fields: [stockLocationId], references: [id])
+
+  @@unique([menuItemId, inventoryItemId])
+  @@index([restaurantId])
+  @@index([inventoryItemId])
+}
+
+model StockReservation {
+  id              String                     @id @default(uuid())
+  restaurantId    String
+  orderId         String
+  orderItemId     String
+  inventoryItemId String
+  stockLocationId String
+  quantity        Decimal
+  sourceType      StockReservationSourceType
+  status          StockReservationStatus     @default(ACTIVE)
+  reservedAt      DateTime                   @default(now())
+  consumedAt      DateTime?
+  releasedAt      DateTime?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation @relation(fields: [stockLocationId], references: [id])
+
+  @@unique([orderItemId, inventoryItemId, stockLocationId, sourceType])
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([inventoryItemId])
+  @@index([status])
+}
+
+model StockMovement {
+  id                 String            @id @default(uuid())
+  restaurantId       String
+  inventoryItemId    String
+  stockLocationId    String
+  movementType       StockMovementType
+  quantity           Decimal
+  quantityBefore     Decimal
+  quantityAfter      Decimal
+  reservedBefore     Decimal
+  reservedAfter      Decimal
+  unitCost           Decimal?
+  totalCost          Decimal?
+  orderId            String?
+  orderItemId        String?
+  stockReceiptId     String?
+  stockReceiptLineId String?
+  stockReservationId String?
+  actorUserId        String
+  attributedWaiterId String?
+  reason             String?
+  referenceNumber    String?
+  metadata           Json?
+  createdAt          DateTime          @default(now())
+
+  restaurant       Restaurant    @relation(fields: [restaurantId], references: [id])
+  inventoryItem    InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation    StockLocation @relation(fields: [stockLocationId], references: [id])
+  actor            User          @relation("actorStockMovements", fields: [actorUserId], references: [id])
+  attributedWaiter User?         @relation("waiterStockMovements", fields: [attributedWaiterId], references: [id])
+
+  @@index([restaurantId])
+  @@index([inventoryItemId])
+  @@index([stockLocationId])
+  @@index([movementType])
+  @@index([actorUserId])
+  @@index([attributedWaiterId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, movementType, createdAt])
+  @@index([restaurantId, attributedWaiterId, createdAt])
+  @@index([restaurantId, inventoryItemId, createdAt])
+  @@index([restaurantId, stockLocationId, createdAt])
+}
+
+model InventoryAlert {
+  id              String    @id @default(uuid())
+  restaurantId    String
+  inventoryItemId String
+  stockLocationId String
+  alertType       String
+  message         String
+  isResolved      Boolean   @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation @relation(fields: [stockLocationId], references: [id])
+
+  @@index([restaurantId, isResolved])
+  @@index([inventoryItemId])
+  @@index([stockLocationId])
+}
+
+model DocumentSequence {
+  id           String   @id @default(uuid())
+  restaurantId String
+  sequenceType String
+  businessDate String
+  currentValue Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([restaurantId, sequenceType, businessDate])
+  @@index([restaurantId])
+}
+
+// ==========================================
+// SHIFT TEMPLATES (Phase 7)
+// ==========================================
+
+model ShiftTemplate {
+  id                             String   @id @default(uuid())
+  restaurantId                   String
+  name                           String
+  code                           String
+  description                    String?
+  startTime                      String // HH:mm format
+  endTime                        String // HH:mm format
+  crossesMidnight                Boolean  @default(false)
+  defaultBreakMinutes            Int      @default(0)
+  lateGraceMinutes               Int      @default(10)
+  earlyDepartureToleranceMinutes Int      @default(10)
+  overtimeThresholdMinutes       Int      @default(30)
+  colorKey                       String?
+  isActive                       Boolean  @default(true)
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
+  workShifts WorkShift[]
+
+  @@unique([restaurantId, name])
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+}
+
+// ==========================================
+// WORK SHIFTS (Phase 7)
+// ==========================================
+
+model WorkShift {
+  id                 String      @id @default(uuid())
+  restaurantId       String
+  shiftTemplateId    String?
+  nameSnapshot       String
+  codeSnapshot       String
+  businessDate       String // YYYY-MM-DD in restaurant timezone
+  scheduledStartAt   DateTime
+  scheduledEndAt     DateTime
+  status             ShiftStatus @default(DRAFT)
+  notes              String?
+  openedAt           DateTime?
+  openedById         String?
+  closingStartedAt   DateTime?
+  closedAt           DateTime?
+  closedById         String?
+  cancellationReason String?
+  cancelledAt        DateTime?
+  cancelledById      String?
+  createdById        String
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  restaurant      Restaurant        @relation(fields: [restaurantId], references: [id])
+  shiftTemplate   ShiftTemplate?    @relation(fields: [shiftTemplateId], references: [id])
+  openedBy        User?             @relation("openedWorkShifts", fields: [openedById], references: [id])
+  closedBy        User?             @relation("closedWorkShifts", fields: [closedById], references: [id])
+  cancelledBy     User?             @relation("cancelledWorkShifts", fields: [cancelledById], references: [id])
+  createdBy       User              @relation("createdWorkShifts", fields: [createdById], references: [id])
+  assignments     ShiftAssignment[]
+  cashierSessions CashierSession[]
+  handovers       ShiftHandover[]
+  exceptions      ShiftException[]
+
+  @@index([restaurantId])
+  @@index([businessDate])
+  @@index([status])
+  @@index([scheduledStartAt])
+  @@index([scheduledEndAt])
+}
+
+// ==========================================
+// SHIFT ASSIGNMENTS (Phase 7)
+// ==========================================
+
+model ShiftAssignment {
+  id                    String                @id @default(uuid())
+  restaurantId          String
+  workShiftId           String
+  userId                String
+  assignedRoleName      String
+  status                ShiftAssignmentStatus @default(SCHEDULED)
+  scheduledStartAt      DateTime
+  scheduledEndAt        DateTime
+  clockedInAt           DateTime?
+  clockedOutAt          DateTime?
+  totalBreakMinutes     Int                   @default(0)
+  workedMinutes         Int?
+  lateMinutes           Int                   @default(0)
+  earlyDepartureMinutes Int                   @default(0)
+  overtimeMinutes       Int                   @default(0)
+  absenceReason         String?
+  correctionReason      String?
+  correctedById         String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  restaurant       Restaurant        @relation(fields: [restaurantId], references: [id])
+  workShift        WorkShift         @relation(fields: [workShiftId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+  correctedBy      User?             @relation("correctedAssignments", fields: [correctedById], references: [id])
+  attendanceEvents AttendanceEvent[]
+  employeeBreaks   EmployeeBreak[]
+  cashierSessions  CashierSession[]
+  exceptions       ShiftException[]
+
+  @@unique([workShiftId, userId, assignedRoleName])
+  @@index([restaurantId])
+  @@index([workShiftId])
+  @@index([userId])
+  @@index([assignedRoleName])
+  @@index([status])
+  @@index([scheduledStartAt])
+}
+
+// ==========================================
+// ATTENDANCE EVENTS (Phase 7)
+// ==========================================
+
+model AttendanceEvent {
+  id                String                @id @default(uuid())
+  restaurantId      String
+  workShiftId       String?
+  shiftAssignmentId String?
+  userId            String
+  eventType         AttendanceEventType
+  eventAt           DateTime
+  source            AttendanceEventSource
+  note              String?
+  createdById       String
+  isCorrection      Boolean               @default(false)
+  correctedEventId  String?
+  createdAt         DateTime              @default(now())
+
+  restaurant      Restaurant       @relation(fields: [restaurantId], references: [id])
+  user            User             @relation(fields: [userId], references: [id])
+  shiftAssignment ShiftAssignment? @relation(fields: [shiftAssignmentId], references: [id])
+
+  @@index([restaurantId])
+  @@index([userId])
+  @@index([workShiftId])
+  @@index([shiftAssignmentId])
+  @@index([eventType])
+  @@index([eventAt])
+}
+
+// ==========================================
+// EMPLOYEE BREAKS (Phase 7)
+// ==========================================
+
+model EmployeeBreak {
+  id                String    @id @default(uuid())
+  restaurantId      String
+  shiftAssignmentId String
+  startedAt         DateTime
+  endedAt           DateTime?
+  durationMinutes   Int?
+  startedById       String
+  endedById         String?
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  restaurant      Restaurant      @relation(fields: [restaurantId], references: [id])
+  shiftAssignment ShiftAssignment @relation(fields: [shiftAssignmentId], references: [id])
+  startedBy       User            @relation("breakStarters", fields: [startedById], references: [id])
+  endedBy         User?           @relation("breakEnders", fields: [endedById], references: [id])
+
+  @@index([shiftAssignmentId])
+  @@index([startedAt])
+}
+
+// ==========================================
+// CASH REGISTERS (Phase 7)
+// ==========================================
+
+model CashRegister {
+  id                  String             @id @default(uuid())
+  restaurantId        String
+  name                String
+  code                String
+  locationDescription String?
+  status              CashRegisterStatus @default(ACTIVE)
+  isDefault           Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  restaurant Restaurant       @relation(fields: [restaurantId], references: [id])
+  sessions   CashierSession[]
+
+  @@unique([restaurantId, name])
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([restaurantId, status])
+}
+
+// ==========================================
+// CASHIER SESSIONS (Phase 7)
+// ==========================================
+
+model CashierSession {
+  id                     String               @id @default(uuid())
+  restaurantId           String
+  cashRegisterId         String
+  workShiftId            String?
+  shiftAssignmentId      String?
+  cashierId              String
+  status                 CashierSessionStatus @default(OPEN)
+  businessDate           String
+  sessionNumber          String
+  openedAt               DateTime
+  openedById             String
+  openingFloat           Decimal
+  expectedCash           Decimal              @default(0)
+  countedCash            Decimal?
+  varianceAmount         Decimal?
+  varianceStatus         CashVarianceStatus?
+  varianceReason         String?
+  closingNotes           String?
+  closingStartedAt       DateTime?
+  submittedForApprovalAt DateTime?
+  approvedAt             DateTime?
+  approvedById           String?
+  rejectedAt             DateTime?
+  rejectedById           String?
+  rejectionReason        String?
+  closedAt               DateTime?
+  closedById             String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  restaurant          Restaurant              @relation(fields: [restaurantId], references: [id])
+  cashRegister        CashRegister            @relation(fields: [cashRegisterId], references: [id])
+  workShift           WorkShift?              @relation(fields: [workShiftId], references: [id])
+  shiftAssignment     ShiftAssignment?        @relation(fields: [shiftAssignmentId], references: [id])
+  cashier             User                    @relation("cashierSessions", fields: [cashierId], references: [id])
+  openedBy            User                    @relation("openedSessions", fields: [openedById], references: [id])
+  approvedBy          User?                   @relation("approvedSessions", fields: [approvedById], references: [id])
+  rejectedBy          User?                   @relation("rejectedSessions", fields: [rejectedById], references: [id])
+  closedBy            User?                   @relation("closedSessions", fields: [closedById], references: [id])
+  payments            Payment[]
+  cashDrawerMovements CashDrawerMovement[]
+  denominationCounts  CashDenominationCount[]
+
+  @@unique([restaurantId, sessionNumber])
+  @@index([restaurantId])
+  @@index([cashRegisterId])
+  @@index([cashierId])
+  @@index([workShiftId])
+  @@index([status])
+  @@index([businessDate])
+  @@index([openedAt])
+  @@index([closedAt])
+}
+
+// ==========================================
+// CASH DRAWER MOVEMENTS (Phase 7)
+// ==========================================
+
+model CashDrawerMovement {
+  id               String                 @id @default(uuid())
+  restaurantId     String
+  cashierSessionId String
+  movementType     CashDrawerMovementType
+  amount           Decimal
+  paymentId        String?
+  orderId          String?
+  referenceNumber  String?
+  reason           String?
+  notes            String?
+  actorUserId      String
+  approvedById     String?
+  occurredAt       DateTime
+  createdAt        DateTime               @default(now())
+
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
+  cashierSession CashierSession @relation(fields: [cashierSessionId], references: [id])
+  payment        Payment?       @relation(fields: [paymentId], references: [id])
+  actor          User           @relation(fields: [actorUserId], references: [id])
+  approvedBy     User?          @relation("approvedDrawerMovements", fields: [approvedById], references: [id])
+
+  @@index([cashierSessionId])
+  @@index([movementType])
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([actorUserId])
+  @@index([occurredAt])
+}
+
+// ==========================================
+// CASH DENOMINATION COUNTS (Phase 7)
+// ==========================================
+
+model CashDenominationCount {
+  id               String   @id @default(uuid())
+  restaurantId     String
+  cashierSessionId String
+  denomination     Decimal
+  quantity         Int
+  lineTotal        Decimal
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
+  cashierSession CashierSession @relation(fields: [cashierSessionId], references: [id])
+
+  @@unique([cashierSessionId, denomination])
+  @@index([cashierSessionId])
+  @@index([restaurantId])
+}
+
+// ==========================================
+// SHIFT HANDOVERS (Phase 7)
+// ==========================================
+
+model ShiftHandover {
+  id                  String         @id @default(uuid())
+  restaurantId        String
+  workShiftId         String
+  fromUserId          String
+  toUserId            String?
+  assignedRoleName    String?
+  status              HandoverStatus @default(DRAFT)
+  title               String
+  notes               String?
+  unresolvedOrders    Json?
+  stockConcerns       Json?
+  cashConcerns        Json?
+  maintenanceConcerns Json?
+  submittedAt         DateTime?
+  acknowledgedAt      DateTime?
+  acknowledgedById    String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
+  workShift      WorkShift  @relation(fields: [workShiftId], references: [id])
+  fromUser       User       @relation("handoverFrom", fields: [fromUserId], references: [id])
+  toUser         User?      @relation("handoverTo", fields: [toUserId], references: [id])
+  acknowledgedBy User?      @relation("handoverAcknowledged", fields: [acknowledgedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([workShiftId])
+  @@index([fromUserId])
+  @@index([status])
+}
+
+// ==========================================
+// SHIFT EXCEPTIONS (Phase 7)
+// ==========================================
+
+model ShiftException {
+  id                String    @id @default(uuid())
+  restaurantId      String
+  workShiftId       String
+  shiftAssignmentId String?
+  cashierSessionId  String?
+  exceptionType     String
+  amount            Decimal?
+  description       String
+  status            String    @default("OPEN")
+  raisedById        String
+  reviewedById      String?
+  resolution        String?
+  createdAt         DateTime  @default(now())
+  reviewedAt        DateTime?
+
+  restaurant      Restaurant       @relation(fields: [restaurantId], references: [id])
+  workShift       WorkShift        @relation(fields: [workShiftId], references: [id])
+  shiftAssignment ShiftAssignment? @relation(fields: [shiftAssignmentId], references: [id])
+  raisedBy        User             @relation("raisedExceptions", fields: [raisedById], references: [id])
+  reviewedBy      User?            @relation("reviewedExceptions", fields: [reviewedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([workShiftId])
+  @@index([exceptionType])
+  @@index([status])
+}
+
+// ==========================================
+// IMPORT & UAT MODELS (Phase 9)
+// ==========================================
+
+enum ImportStatus {
+  UPLOADED
+  VALIDATED
+  READY
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ImportType {
+  DINING_AREAS
+  TABLES
+  MENU_CATEGORIES
+  KITCHEN_STATIONS
+  MENU_ITEMS
+  INVENTORY_CATEGORIES
+  STOCK_LOCATIONS
+  INVENTORY_ITEMS
+  SUPPLIERS
+  OPENING_STOCK
+  STAFF
+  CUSTOMERS
+}
+
+enum UATStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PASSED
+  FAILED
+  BLOCKED
+}
+
+model ImportJob {
+  id            String       @id @default(uuid())
+  restaurantId  String
+  importType    ImportType
+  fileName      String
+  fileHash      String?
+  status        ImportStatus @default(UPLOADED)
+  totalRows     Int          @default(0)
+  validRows     Int          @default(0)
+  invalidRows   Int          @default(0)
+  warningRows   Int          @default(0)
+  createdRows   Int          @default(0)
+  updatedRows   Int          @default(0)
+  skippedRows   Int          @default(0)
+  requestedById String
+  previewData   Json?
+  errorSummary  Json?
+  createdAt     DateTime     @default(now())
+  validatedAt   DateTime?
+  committedAt   DateTime?
+  completedAt   DateTime?
+  failedAt      DateTime?
+  cancelledAt   DateTime?
+
+  restaurant  Restaurant @relation("importJobRestaurant", fields: [restaurantId], references: [id])
+  requestedBy User       @relation("importJobRequestedBy", fields: [requestedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([importType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UATScenario {
+  id                String    @id @default(uuid())
+  restaurantId      String
+  scenarioKey       String
+  title             String
+  module            String
+  roleName          String
+  status            UATStatus @default(NOT_STARTED)
+  assignedToId      String?
+  testedById        String?
+  testedAt          DateTime?
+  notes             String?
+  evidenceReference String?
+  issueReference    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  restaurant Restaurant @relation("uatRestaurant", fields: [restaurantId], references: [id])
+  assignedTo User?      @relation("uatAssignedTo", fields: [assignedToId], references: [id])
+  testedBy   User?      @relation("uatTestedBy", fields: [testedById], references: [id])
+
+  @@unique([restaurantId, scenarioKey])
+  @@index([restaurantId])
+  @@index([module])
+  @@index([roleName])
+  @@index([status])
+}
+
+// ==========================================
+// PHASE 10: PUBLIC WEBSITE & ONLINE ORDERING
+// ==========================================
+
+enum CancellationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model RestaurantOpeningHour {
+  id                   String    @id @default(uuid())
+  restaurantId         String
+  dayOfWeek            DayOfWeek
+  isClosed             Boolean   @default(false)
+  supportsPickup       Boolean   @default(true)
+  supportsDelivery     Boolean   @default(false)
+  supportsReservations Boolean   @default(true)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  restaurant Restaurant          @relation(fields: [restaurantId], references: [id])
+  periods    OpeningHourPeriod[]
+
+  @@unique([restaurantId, dayOfWeek])
+  @@index([restaurantId])
+}
+
+model OpeningHourPeriod {
+  id            String   @id @default(uuid())
+  openingHourId String
+  restaurantId  String
+  openTime      String // HH:mm
+  closeTime     String // HH:mm
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  openingHour RestaurantOpeningHour @relation(fields: [openingHourId], references: [id], onDelete: Cascade)
+  restaurant  Restaurant            @relation(fields: [restaurantId], references: [id])
+
+  @@index([openingHourId])
+  @@index([restaurantId])
+}
+
+model RestaurantSpecialHour {
+  id           String   @id @default(uuid())
+  restaurantId String
+  date         DateTime // Date only, restaurant timezone
+  openTime     String?
+  closeTime    String?
+  isClosed     Boolean  @default(false)
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([restaurantId, date])
+  @@index([restaurantId])
+}
+
+model DeliveryZone {
+  id                       String   @id @default(uuid())
+  restaurantId             String
+  name                     String
+  code                     String
+  description              String?
+  minimumOrderAmount       Decimal  @default(0)
+  deliveryFee              Decimal  @default(0)
+  estimatedDeliveryMinutes Int      @default(30)
+  isActive                 Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  restaurant        Restaurant        @relation(fields: [restaurantId], references: [id])
+  customerAddresses CustomerAddress[]
+
+  @@unique([restaurantId, name])
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+}
+
+model CustomerAddress {
+  id                   String   @id @default(uuid())
+  restaurantId         String
+  customerId           String
+  deliveryZoneId       String?
+  label                String? // "Home", "Work", etc.
+  recipientName        String
+  phone                String
+  addressLine1         String
+  addressLine2         String?
+  neighbourhood        String?
+  city                 String
+  landmark             String?
+  deliveryInstructions String?
+  isDefault            Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id])
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  deliveryZone DeliveryZone? @relation(fields: [deliveryZoneId], references: [id])
+
+  @@index([restaurantId])
+  @@index([customerId])
+  @@index([deliveryZoneId])
+  @@index([isActive])
+}
+
+model TableQrToken {
+  id           String    @id @default(uuid())
+  restaurantId String
+  tableId      String
+  tokenHash    String
+  tokenPrefix  String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  rotatedAt    DateTime?
+  revokedAt    DateTime?
+
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id])
+  table      RestaurantTable @relation(fields: [tableId], references: [id])
+
+  @@unique([restaurantId, tokenHash])
+  @@index([restaurantId])
+  @@index([tableId])
+  @@index([isActive])
+}
+
+model PublicOrderCancellationRequest {
+  id               String                    @id @default(uuid())
+  restaurantId     String
+  orderId          String
+  reason           String
+  status           CancellationRequestStatus @default(PENDING)
+  requestedAt      DateTime                  @default(now())
+  resolvedAt       DateTime?
+  resolvedById     String?
+  resolutionReason String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  order      Order      @relation(fields: [orderId], references: [id])
+  resolvedBy User?      @relation(fields: [resolvedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([status])
+}
+
+model PublicOrderIdempotencyKey {
+  id             String   @id @default(uuid())
+  restaurantId   String
+  idempotencyKey String
+  orderId        String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([restaurantId, idempotencyKey])
+  @@index([restaurantId])
+  @@index([expiresAt])
+}
+
+// ==========================================
+// PHASE 8: CUSTOMER MODELS
+// ==========================================
+
+model Customer {
+  id                          String                 @id @default(uuid())
+  restaurantId                String
+  customerNumber              String
+  firstName                   String
+  lastName                    String?
+  phone                       String?
+  email                       String?
+  dateOfBirth                 DateTime?
+  status                      CustomerStatus         @default(ACTIVE)
+  preferredDiningAreaId       String?
+  preferredTableId            String?
+  dietaryPreferences          String?
+  allergyNotes                String?
+  generalNotes                String?
+  marketingConsent            Boolean                @default(false)
+  marketingConsentAt          DateTime?
+  marketingConsentSource      CustomerConsentSource?
+  marketingConsentWithdrawnAt DateTime?
+  firstVisitAt                DateTime?
+  lastVisitAt                 DateTime?
+  totalVisits                 Int                    @default(0)
+  createdById                 String
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+
+  restaurant          Restaurant           @relation(fields: [restaurantId], references: [id])
+  createdBy           User                 @relation("customerCreatedBy", fields: [createdById], references: [id])
+  preferredDiningArea DiningArea?          @relation("customerPreferredDiningArea", fields: [preferredDiningAreaId], references: [id])
+  preferredTable      RestaurantTable?     @relation("customerPreferredTable", fields: [preferredTableId], references: [id])
+  notes               CustomerNote[]
+  loyaltyAccount      LoyaltyAccount?
+  loyaltyTransactions LoyaltyTransaction[]
+  promotionUsages     PromotionUsage[]
+  orderDiscounts      OrderDiscount[]
+  Reservation         Reservation[]
+  WaitingListEntry    WaitingListEntry[]
+  addresses           CustomerAddress[]
+
+  @@unique([restaurantId, customerNumber])
+  @@index([restaurantId])
+  @@index([customerNumber])
+  @@index([phone])
+  @@index([email])
+  @@index([status])
+  @@index([lastVisitAt])
+}
+
+model CustomerNote {
+  id           String           @id @default(uuid())
+  restaurantId String
+  customerId   String
+  note         String
+  noteType     CustomerNoteType @default(GENERAL)
+  isImportant  Boolean          @default(false)
+  createdById  String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  createdBy  User       @relation("customerNoteCreatedBy", fields: [createdById], references: [id])
+
+  @@index([customerId])
+  @@index([noteType])
+  @@index([createdAt])
+}
+
+// ==========================================
+// PHASE 8: RESERVATION MODELS
+// ==========================================
+
+model Reservation {
+  id                    String            @id @default(uuid())
+  restaurantId          String
+  reservationNumber     String
+  customerId            String?
+  customerNameSnapshot  String
+  customerPhoneSnapshot String?
+  customerEmailSnapshot String?
+  reservationSource     ReservationSource
+  reservationDate       DateTime
+  startAt               DateTime
+  expectedEndAt         DateTime
+  partySize             Int
+  diningAreaId          String?
+  tableId               String?
+  status                ReservationStatus @default(PENDING)
+  specialRequests       String?
+  dietaryNotesSnapshot  String?
+  occasion              String?
+  internalNotes         String?
+  confirmationCode      String?
+  confirmedAt           DateTime?
+  confirmedById         String?
+  checkedInAt           DateTime?
+  checkedInById         String?
+  seatedAt              DateTime?
+  seatedById            String?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  cancelledById         String?
+  cancellationReason    String?
+  noShowMarkedAt        DateTime?
+  noShowMarkedById      String?
+  orderId               String?
+  createdById           String
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  restaurant       Restaurant                 @relation(fields: [restaurantId], references: [id])
+  customer         Customer?                  @relation(fields: [customerId], references: [id])
+  diningArea       DiningArea?                @relation(fields: [diningAreaId], references: [id])
+  table            RestaurantTable?           @relation(fields: [tableId], references: [id])
+  confirmedBy      User?                      @relation("reservationConfirmedBy", fields: [confirmedById], references: [id])
+  checkedInBy      User?                      @relation("reservationCheckedInBy", fields: [checkedInById], references: [id])
+  seatedBy         User?                      @relation("reservationSeatedBy", fields: [seatedById], references: [id])
+  cancelledBy      User?                      @relation("reservationCancelledBy", fields: [cancelledById], references: [id])
+  noShowMarkedBy   User?                      @relation("reservationNoShowMarkedBy", fields: [noShowMarkedById], references: [id])
+  order            Order?                     @relation(fields: [orderId], references: [id])
+  createdBy        User                       @relation("reservationCreatedBy", fields: [createdById], references: [id])
+  statusHistory    ReservationStatusHistory[]
+  WaitingListEntry WaitingListEntry[]
+
+  @@unique([restaurantId, reservationNumber])
+  @@index([restaurantId])
+  @@index([reservationDate])
+  @@index([startAt])
+  @@index([status])
+  @@index([customerId])
+  @@index([diningAreaId])
+  @@index([tableId])
+  @@index([orderId])
+}
+
+model ReservationStatusHistory {
+  id             String             @id @default(uuid())
+  reservationId  String
+  previousStatus ReservationStatus?
+  newStatus      ReservationStatus
+  reason         String?
+  changedById    String
+  changedAt      DateTime           @default(now())
+
+  reservation  Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  changedBy    User        @relation("statusHistoryChangedBy", fields: [changedById], references: [id])
+  Restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurantId String?
+
+  @@index([reservationId])
+  @@index([changedAt])
+}
+
+model WaitingListEntry {
+  id                    String            @id @default(uuid())
+  restaurantId          String
+  queueNumber           String
+  customerId            String?
+  customerName          String
+  phone                 String?
+  partySize             Int
+  preferredDiningAreaId String?
+  estimatedWaitMinutes  Int?
+  status                WaitingListStatus @default(WAITING)
+  joinedAt              DateTime          @default(now())
+  notifiedAt            DateTime?
+  seatedAt              DateTime?
+  leftAt                DateTime?
+  cancelledAt           DateTime?
+  tableId               String?
+  reservationId         String?
+  orderId               String?
+  notes                 String?
+  createdById           String
+  updatedById           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  restaurant  Restaurant       @relation(fields: [restaurantId], references: [id])
+  customer    Customer?        @relation(fields: [customerId], references: [id])
+  diningArea  DiningArea?      @relation(fields: [preferredDiningAreaId], references: [id])
+  table       RestaurantTable? @relation(fields: [tableId], references: [id])
+  reservation Reservation?     @relation(fields: [reservationId], references: [id])
+  createdBy   User             @relation("waitingListCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?            @relation("waitingListUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([status])
+  @@index([joinedAt])
+  @@index([customerId])
+  @@index([tableId])
+}
+
+// ==========================================
+// PHASE 8: LOYALTY MODELS
+// ==========================================
+
+model LoyaltyAccount {
+  id                     String    @id @default(uuid())
+  restaurantId           String
+  customerId             String    @unique
+  pointsBalance          Int       @default(0)
+  lifetimePointsEarned   Int       @default(0)
+  lifetimePointsRedeemed Int       @default(0)
+  tierName               String?
+  enrolledAt             DateTime  @default(now())
+  isActive               Boolean   @default(true)
+  lastActivityAt         DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id])
+  customer     Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@index([restaurantId])
+  @@index([customerId])
+  @@index([isActive])
+  @@index([lastActivityAt])
+}
+
+model LoyaltyTransaction {
+  id                  String                 @id @default(uuid())
+  restaurantId        String
+  loyaltyAccountId    String
+  customerId          String
+  transactionType     LoyaltyTransactionType
+  points              Int
+  balanceBefore       Int
+  balanceAfter        Int
+  orderId             String?
+  receiptId           String?
+  promotionId         String?
+  reason              String?
+  referenceNumber     String
+  actorUserId         String
+  parentTransactionId String?
+  createdAt           DateTime               @default(now())
+
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [id])
+  loyaltyAccount LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id])
+  customer       Customer       @relation(fields: [customerId], references: [id])
+  order          Order?         @relation(fields: [orderId], references: [id])
+
+  @@unique([restaurantId, referenceNumber])
+  @@index([restaurantId])
+  @@index([loyaltyAccountId])
+  @@index([customerId])
+  @@index([orderId])
+  @@index([transactionType])
+  @@index([createdAt])
+}
+
+// ==========================================
+// PHASE 8: PROMOTION MODELS
+// ==========================================
+
+model Promotion {
+  id                    String          @id @default(uuid())
+  restaurantId          String
+  name                  String
+  code                  String?
+  description           String?
+  promotionType         PromotionType
+  promotionScope        PromotionScope
+  status                PromotionStatus @default(DRAFT)
+  percentageValue       Decimal?
+  fixedAmountValue      Decimal?
+  fixedItemPrice        Decimal?
+  buyQuantity           Int?
+  getQuantity           Int?
+  minimumOrderSubtotal  Decimal?
+  maximumDiscountAmount Decimal?
+  startAt               DateTime
+  endAt                 DateTime
+  usageLimitTotal       Int?
+  usageLimitPerCustomer Int?
+  currentUsageCount     Int             @default(0)
+  customerRequired      Boolean         @default(false)
+  loyaltyMembersOnly    Boolean         @default(false)
+  automaticallyApply    Boolean         @default(false)
+  allowStacking         Boolean         @default(false)
+  priority              Int             @default(0)
+  isActive              Boolean         @default(true)
+  // Phase 10: Public promotion fields
+  publiclyVisible       Boolean         @default(false)
+  publicDescription     String?
+  publicBannerImageUrl  String?
+  createdById           String
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  restaurant     Restaurant              @relation(fields: [restaurantId], references: [id])
+  createdBy      User                    @relation("promotionCreatedBy", fields: [createdById], references: [id])
+  schedules      PromotionSchedule[]
+  menuItems      PromotionMenuItem[]
+  menuCategories PromotionMenuCategory[]
+  usages         PromotionUsage[]
+  orderDiscounts OrderDiscount[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([code])
+  @@index([status])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([automaticallyApply])
+  @@index([priority])
+}
+
+model PromotionSchedule {
+  id          String    @id @default(uuid())
+  promotionId String
+  dayOfWeek   DayOfWeek
+  startTime   String?
+  endTime     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+}
+
+model PromotionMenuItem {
+  promotionId String
+  menuItemId  String
+
+  promotion    Promotion   @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  menuItem     MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  Restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurantId String?
+
+  @@id([promotionId, menuItemId])
+}
+
+model PromotionMenuCategory {
+  promotionId    String
+  menuCategoryId String
+
+  promotion    Promotion    @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  menuCategory MenuCategory @relation(fields: [menuCategoryId], references: [id], onDelete: Cascade)
+  Restaurant   Restaurant?  @relation(fields: [restaurantId], references: [id])
+  restaurantId String?
+
+  @@id([promotionId, menuCategoryId])
+}
+
+model PromotionUsage {
+  id              String   @id @default(uuid())
+  restaurantId    String
+  promotionId     String
+  customerId      String?
+  orderId         String
+  orderDiscountId String
+  discountAmount  Decimal
+  usedAt          DateTime @default(now())
+  createdById     String
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  promotion  Promotion  @relation(fields: [promotionId], references: [id])
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  order      Order      @relation(fields: [orderId], references: [id])
+  createdBy  User       @relation("promotionUsageCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([promotionId, orderId, orderDiscountId])
+  @@index([promotionId])
+  @@index([customerId])
+  @@index([orderId])
+  @@index([usedAt])
+}
+
+model OrderDiscount {
+  id                      String         @id @default(uuid())
+  restaurantId            String
+  orderId                 String
+  orderItemId             String?
+  promotionId             String?
+  customerId              String?
+  source                  DiscountSource
+  status                  DiscountStatus @default(ACTIVE)
+  nameSnapshot            String
+  codeSnapshot            String?
+  scopeSnapshot           String
+  calculationTypeSnapshot String
+  percentageValueSnapshot Decimal?
+  fixedValueSnapshot      Decimal?
+  discountAmount          Decimal
+  reason                  String?
+  appliedById             String
+  approvedById            String?
+  appliedAt               DateTime       @default(now())
+  removedAt               DateTime?
+  removedById             String?
+  removalReason           String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  order      Order      @relation(fields: [orderId], references: [id])
+  orderItem  OrderItem? @relation(fields: [orderItemId], references: [id])
+  promotion  Promotion? @relation(fields: [promotionId], references: [id])
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  appliedBy  User       @relation("discountAppliedBy", fields: [appliedById], references: [id])
+  approvedBy User?      @relation("discountApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([promotionId])
+  @@index([customerId])
+  @@index([source])
+  @@index([status])
+  @@index([appliedAt])
+}
+
+model DiscountRequest {
+  id               String                @id @default(uuid())
+  restaurantId     String
+  orderId          String
+  orderItemId      String?
+  requestedById    String
+  discountType     String
+  percentageValue  Decimal?
+  fixedAmountValue Decimal?
+  reason           String
+  status           DiscountRequestStatus @default(PENDING)
+  reviewedById     String?
+  reviewReason     String?
+  createdAt        DateTime              @default(now())
+  reviewedAt       DateTime?
+
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  order       Order      @relation(fields: [orderId], references: [id])
+  orderItem   OrderItem? @relation(fields: [orderItemId], references: [id])
+  requestedBy User       @relation("discountRequestRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?      @relation("discountRequestReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([orderId])
+  @@index([status])
+  @@index([requestedById])
+}
+
+// ============================================================
+// PHASE 13 - HR, PAYROLL, LEAVE, ADVANCES, TIPS & PAYSLIPS
+// ============================================================
+
+// --- ENUMS ---
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CASUAL
+  CONTRACT
+  INTERN
+  TEMPORARY
+  OTHER
+}
+
+enum PayBasis {
+  MONTHLY_SALARY
+  HOURLY
+  DAILY
+  FIXED_PERIOD
+  MANUAL
+}
+
+enum PayFrequency {
+  WEEKLY
+  BIWEEKLY
+  SEMIMONTHLY
+  MONTHLY
+  CUSTOM
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum LeaveTypeCode {
+  ANNUAL
+  SICK
+  UNPAID
+  MATERNITY
+  PATERNITY
+  COMPASSIONATE
+  STUDY
+  TIME_OFF_IN_LIEU
+  OTHER
+}
+
+enum LeaveRequestStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  PARTIALLY_APPROVED
+  REJECTED
+  CANCELLED
+  TAKEN
+}
+
+enum LeaveLedgerTransactionType {
+  OPENING_BALANCE
+  ACCRUAL
+  MANUAL_ADJUSTMENT_IN
+  MANUAL_ADJUSTMENT_OUT
+  LEAVE_RESERVED
+  LEAVE_TAKEN
+  LEAVE_RELEASED
+  EXPIRY
+  CARRY_FORWARD
+}
+
+enum LeaveUnit {
+  DAYS
+  HOURS
+}
+
+enum LeaveAccrualFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  PAYROLL_PERIOD
+  MANUAL
+}
+
+enum PayrollPeriodStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  CALCULATED
+  PENDING_APPROVAL
+  APPROVED
+  FINALIZED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PayrollEmployeeLineStatus {
+  DRAFT
+  CALCULATED
+  REVIEW_REQUIRED
+  APPROVED
+  FINALIZED
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+}
+
+enum PayrollComponentType {
+  BASE_EARNING
+  OVERTIME
+  ALLOWANCE
+  BONUS
+  TIP
+  SERVICE_CHARGE
+  EMPLOYEE_DEDUCTION
+  EMPLOYER_CONTRIBUTION
+  ADVANCE_REPAYMENT
+  UNPAID_LEAVE_DEDUCTION
+  INFORMATIONAL
+  OTHER
+}
+
+enum PayrollCalculationMethod {
+  FIXED_AMOUNT
+  PERCENTAGE_OF_BASE
+  PERCENTAGE_OF_GROSS
+  PER_HOUR
+  PER_DAY
+  MANUAL
+  FORMULA
+}
+
+enum PayrollApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollDisbursementStatus {
+  DRAFT
+  POSTED
+  REVERSED
+  CANCELLED
+}
+
+enum PayrollPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CHEQUE
+  OTHER
+}
+
+enum StaffAdvanceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  DISBURSED
+  PARTIALLY_REPAID
+  REPAID
+  REJECTED
+  CANCELLED
+  WRITTEN_OFF
+}
+
+enum StaffAdvanceRepaymentMethod {
+  PAYROLL_DEDUCTION
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  OTHER
+}
+
+enum TipStatus {
+  RECORDED
+  AVAILABLE_FOR_DISTRIBUTION
+  ALLOCATED
+  PAID
+  REVERSED
+  CANCELLED
+}
+
+enum TipAllocationMethod {
+  DIRECT_EMPLOYEE
+  EQUAL_SHARE
+  HOURS_WORKED
+  ROLE_WEIGHTED
+  CUSTOM_PERCENTAGE
+  CUSTOM_AMOUNT
+}
+
+enum ServiceChargeDistributionMethod {
+  EQUAL_SHARE
+  HOURS_WORKED
+  ROLE_WEIGHTED
+  CUSTOM_PERCENTAGE
+  CUSTOM_AMOUNT
+}
+
+enum DistributionPoolStatus {
+  DRAFT
+  CALCULATED
+  PENDING_APPROVAL
+  APPROVED
+  POSTED_TO_PAYROLL
+  PAID
+  CANCELLED
+  REVERSED
+}
+
+enum PayslipStatus {
+  ISSUED
+  VOIDED
+  REPLACED
+}
+
+enum AdvanceRepaymentStatus {
+  POSTED
+  REVERSED
+}
+
+enum PayrollLineItemSourceType {
+  COMPENSATION_PROFILE
+  ATTENDANCE
+  OVERTIME
+  LEAVE
+  RECURRING_COMPONENT
+  MANUAL_ADJUSTMENT
+  STAFF_ADVANCE
+  TIP_POOL
+  SERVICE_CHARGE_POOL
+  OTHER
+}
+
+enum DistributionAllocationStatus {
+  CALCULATED
+  APPROVED
+  POSTED_TO_PAYROLL
+  PAID
+  REVERSED
+}
+
+enum StatutoryCalculationMode {
+  DISABLED
+  MANUAL_CONFIGURATION
+  EXTERNAL_SYSTEM
+}
+
+enum OvertimeApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// --- MODELS ---
+
+model EmployeeEmploymentProfile {
+  id                    String           @id @default(uuid())
+  restaurantId          String
+  userId                String
+  employeeCodeSnapshot  String
+  employmentType        EmploymentType
+  employmentStatus      EmploymentStatus @default(ACTIVE)
+  jobTitle              String?
+  department            String?
+  hireDate              DateTime
+  contractStartDate     DateTime?
+  contractEndDate       DateTime?
+  probationEndDate      DateTime?
+  terminationDate       DateTime?
+  terminationReason     String?
+  standardHoursPerWeek  Float?
+  standardDaysPerWeek   Int?
+  defaultPayFrequency   PayFrequency     @default(MONTHLY)
+  primaryPayBasis       PayBasis         @default(MONTHLY_SALARY)
+  payrollEligible       Boolean          @default(true)
+  leaveEligible         Boolean          @default(true)
+  overtimeEligible      Boolean          @default(true)
+  tipEligible           Boolean          @default(true)
+  serviceChargeEligible Boolean          @default(true)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([restaurantId, userId])
+  @@index([restaurantId])
+  @@index([employmentStatus])
+  @@index([employmentType])
+  @@index([payrollEligible])
+  @@index([hireDate])
+}
+
+model EmployeeCompensationProfile {
+  id                           String       @id @default(uuid())
+  restaurantId                 String
+  userId                       String
+  employmentProfileId          String
+  effectiveFrom                DateTime
+  effectiveTo                  DateTime?
+  payBasis                     PayBasis
+  payFrequency                 PayFrequency
+  baseSalary                   Decimal?
+  hourlyRate                   Decimal?
+  dailyRate                    Decimal?
+  fixedPeriodAmount            Decimal?
+  overtimeRateMultiplier       Decimal      @default(1.5)
+  currency                     String       @default("RWF")
+  standardHoursPerDay          Decimal?
+  standardWorkingDaysPerPeriod Int?
+  notes                        String?
+  createdById                  String
+  approvedById                 String?
+  approvedAt                   DateTime?
+  isActive                     Boolean      @default(true)
+  createdAt                    DateTime     @default(now())
+  updatedAt                    DateTime     @updatedAt
+
+  user       User       @relation("compensationUser", fields: [userId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  createdBy  User       @relation("compensationCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?      @relation("compensationApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([userId])
+  @@index([effectiveFrom])
+  @@index([effectiveTo])
+  @@index([isActive])
+}
+
+model LeaveType {
+  id                      String        @id @default(uuid())
+  restaurantId            String
+  code                    String
+  name                    String
+  description             String?
+  leaveTypeCode           LeaveTypeCode
+  unit                    LeaveUnit     @default(DAYS)
+  isPaid                  Boolean       @default(true)
+  requiresAttachment      Boolean       @default(false)
+  requiresApproval        Boolean       @default(true)
+  allowsNegativeBalance   Boolean       @default(false)
+  maximumNegativeBalance  Decimal       @default(0)
+  minimumNoticeDays       Int           @default(0)
+  maximumConsecutiveUnits Decimal?
+  allowHalfDay            Boolean       @default(true)
+  allowHourlyRequest      Boolean       @default(false)
+  colorKey                String?
+  isActive                Boolean       @default(true)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  restaurant              Restaurant               @relation(fields: [restaurantId], references: [id])
+  leaveRequests           LeaveRequest[]
+  leaveLedgerTransactions LeaveLedgerTransaction[]
+  employeeLeaveBalances   EmployeeLeaveBalance[]
+  leavePolicies           LeavePolicy[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([isActive])
+  @@index([leaveTypeCode])
+}
+
+model LeavePolicy {
+  id                           String                 @id @default(uuid())
+  restaurantId                 String
+  name                         String
+  leaveTypeId                  String
+  employmentType               EmploymentType?
+  annualEntitlement            Decimal
+  accrualEnabled               Boolean                @default(false)
+  accrualFrequency             LeaveAccrualFrequency?
+  accrualAmount                Decimal?
+  carryForwardEnabled          Boolean                @default(false)
+  maximumCarryForward          Decimal?
+  expiryMonths                 Int?
+  waitingPeriodDays            Int                    @default(0)
+  prorateForNewEmployee        Boolean                @default(true)
+  prorateForTerminatedEmployee Boolean                @default(true)
+  isActive                     Boolean                @default(true)
+  effectiveFrom                DateTime
+  effectiveTo                  DateTime?
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+
+  leaveType  LeaveType  @relation(fields: [leaveTypeId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@index([leaveTypeId])
+  @@index([employmentType])
+  @@index([effectiveFrom])
+  @@index([isActive])
+}
+
+model EmployeeLeaveBalance {
+  id               String   @id @default(uuid())
+  restaurantId     String
+  userId           String
+  leaveTypeId      String
+  balanceYear      Int
+  openingBalance   Decimal  @default(0)
+  accrued          Decimal  @default(0)
+  used             Decimal  @default(0)
+  reserved         Decimal  @default(0)
+  expired          Decimal  @default(0)
+  adjusted         Decimal  @default(0)
+  availableBalance Decimal  @default(0)
+  lastCalculatedAt DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user                    User                     @relation(fields: [userId], references: [id])
+  leaveType               LeaveType                @relation(fields: [leaveTypeId], references: [id])
+  restaurant              Restaurant               @relation(fields: [restaurantId], references: [id])
+  leaveLedgerTransactions LeaveLedgerTransaction[]
+
+  @@unique([restaurantId, userId, leaveTypeId, balanceYear])
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([balanceYear])
+}
+
+model LeaveLedgerTransaction {
+  id                  String                     @id @default(uuid())
+  restaurantId        String
+  userId              String
+  leaveTypeId         String
+  leaveBalanceId      String
+  transactionType     LeaveLedgerTransactionType
+  quantity            Decimal
+  balanceBefore       Decimal
+  balanceAfter        Decimal
+  leaveRequestId      String?
+  reason              String?
+  effectiveDate       DateTime
+  createdById         String
+  parentTransactionId String?
+  createdAt           DateTime                   @default(now())
+
+  user         User                 @relation(fields: [userId], references: [id])
+  leaveType    LeaveType            @relation(fields: [leaveTypeId], references: [id])
+  leaveBalance EmployeeLeaveBalance @relation(fields: [leaveBalanceId], references: [id])
+  leaveRequest LeaveRequest?        @relation(fields: [leaveRequestId], references: [id])
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id])
+  createdBy    User                 @relation("ledgerCreatedBy", fields: [createdById], references: [id])
+
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([leaveRequestId])
+  @@index([effectiveDate])
+  @@index([transactionType])
+}
+
+model LeaveRequest {
+  id                  String             @id @default(uuid())
+  restaurantId        String
+  leaveRequestNumber  String
+  userId              String
+  leaveTypeId         String
+  status              LeaveRequestStatus @default(DRAFT)
+  startDate           DateTime
+  endDate             DateTime
+  startHalfDay        Boolean            @default(false)
+  endHalfDay          Boolean            @default(false)
+  startTime           String?
+  endTime             String?
+  requestedQuantity   Decimal
+  approvedQuantity    Decimal?
+  reason              String
+  employeeNotes       String?
+  managerNotes        String?
+  attachmentReference String?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+  approvedById        String?
+  rejectedAt          DateTime?
+  rejectedById        String?
+  rejectionReason     String?
+  cancelledAt         DateTime?
+  cancelledById       String?
+  cancellationReason  String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id])
+  leaveType      LeaveType       @relation(fields: [leaveTypeId], references: [id])
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id])
+  approvedBy     User?           @relation("leaveApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy     User?           @relation("leaveRejectedBy", fields: [rejectedById], references: [id])
+  cancelledBy    User?           @relation("leaveCancelledBy", fields: [cancelledById], references: [id])
+  leaveApprovals LeaveApproval[]
+
+  leaveLedgerTransactions LeaveLedgerTransaction[]
+
+  @@unique([restaurantId, leaveRequestNumber])
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model LeaveApproval {
+  id               String             @id @default(uuid())
+  restaurantId     String
+  leaveRequestId   String
+  status           LeaveRequestStatus
+  requestedById    String
+  requestedAt      DateTime?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  approvedQuantity Decimal?
+  reason           String?
+  createdAt        DateTime           @default(now())
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id])
+  requestedBy  User         @relation("leaveApprovalRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy   User?        @relation("leaveApprovalReviewedBy", fields: [reviewedById], references: [id])
+
+  userLeaveApproval User[] @relation("userLeaveApproval")
+
+  @@index([leaveRequestId])
+  @@index([status])
+  @@index([reviewedById])
+}
+
+model OvertimeApproval {
+  id                String                 @id @default(uuid())
+  restaurantId      String
+  userId            String
+  shiftAssignmentId String?
+  overtimeMinutes   Int
+  status            OvertimeApprovalStatus @default(PENDING)
+  reason            String?
+  requestedById     String
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime               @default(now())
+
+  user        User       @relation(fields: [userId], references: [id])
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  requestedBy User       @relation("overtimeRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?      @relation("overtimeReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model PayrollPeriod {
+  id           String              @id @default(uuid())
+  restaurantId String
+  periodNumber String
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  payDate      DateTime?
+  payFrequency PayFrequency
+  status       PayrollPeriodStatus @default(DRAFT)
+  currency     String              @default("RWF")
+  notes        String?
+  openedAt     DateTime?
+  openedById   String?
+  closedAt     DateTime?
+  closedById   String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  restaurant  Restaurant   @relation(fields: [restaurantId], references: [id])
+  payrollRuns PayrollRun[]
+
+  @@unique([restaurantId, periodNumber])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+  @@index([payFrequency])
+}
+
+model PayrollComponentDefinition {
+  id                String                   @id @default(uuid())
+  restaurantId      String
+  code              String
+  name              String
+  description       String?
+  componentType     PayrollComponentType
+  calculationMethod PayrollCalculationMethod
+  defaultAmount     Decimal?
+  defaultPercentage Decimal?
+  defaultRate       Decimal?
+  taxable           Boolean                  @default(false)
+  pensionable       Boolean                  @default(false)
+  affectsGrossPay   Boolean                  @default(true)
+  affectsNetPay     Boolean                  @default(true)
+  employerOnly      Boolean                  @default(false)
+  recurring         Boolean                  @default(false)
+  displayOnPayslip  Boolean                  @default(true)
+  displayOrder      Int                      @default(0)
+  isActive          Boolean                  @default(true)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  restaurant                         Restaurant                          @relation(fields: [restaurantId], references: [id])
+  employeeRecurringPayrollComponents EmployeeRecurringPayrollComponent[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+  @@index([componentType])
+  @@index([isActive])
+}
+
+model EmployeeRecurringPayrollComponent {
+  id                           String    @id @default(uuid())
+  restaurantId                 String
+  userId                       String
+  payrollComponentDefinitionId String
+  effectiveFrom                DateTime
+  effectiveTo                  DateTime?
+  amount                       Decimal?
+  percentage                   Decimal?
+  rate                         Decimal?
+  notes                        String?
+  isActive                     Boolean   @default(true)
+  createdById                  String
+  approvedById                 String?
+  approvedAt                   DateTime?
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+
+  user                       User                       @relation(fields: [userId], references: [id])
+  payrollComponentDefinition PayrollComponentDefinition @relation(fields: [payrollComponentDefinitionId], references: [id])
+  restaurant                 Restaurant                 @relation(fields: [restaurantId], references: [id])
+  createdBy                  User                       @relation("recurringComponentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([userId])
+  @@index([payrollComponentDefinitionId])
+  @@index([effectiveFrom])
+  @@index([isActive])
+}
+
+model PayrollRun {
+  id                         String           @id @default(uuid())
+  restaurantId               String
+  payrollRunNumber           String
+  payrollPeriodId            String
+  status                     PayrollRunStatus @default(DRAFT)
+  currency                   String           @default("RWF")
+  employeeCount              Int              @default(0)
+  totalBasePay               Decimal          @default(0)
+  totalOvertime              Decimal          @default(0)
+  totalAllowances            Decimal          @default(0)
+  totalBonuses               Decimal          @default(0)
+  totalTips                  Decimal          @default(0)
+  totalServiceCharge         Decimal          @default(0)
+  totalGrossEarnings         Decimal          @default(0)
+  totalEmployeeDeductions    Decimal          @default(0)
+  totalEmployerContributions Decimal          @default(0)
+  totalAdvanceRepayments     Decimal          @default(0)
+  totalNetPay                Decimal          @default(0)
+  totalAmountPaid            Decimal          @default(0)
+  totalAmountDue             Decimal          @default(0)
+  calculatedAt               DateTime?
+  calculatedById             String?
+  submittedAt                DateTime?
+  approvedAt                 DateTime?
+  approvedById               String?
+  finalizedAt                DateTime?
+  finalizedById              String?
+  cancelledAt                DateTime?
+  cancelledById              String?
+  cancellationReason         String?
+  notes                      String?
+  createdById                String
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+
+  payrollPeriod PayrollPeriod @relation(fields: [payrollPeriodId], references: [id])
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  createdBy     User          @relation("payrollRunCreatedBy", fields: [createdById], references: [id])
+  calculatedBy  User?         @relation("payrollRunCalculatedBy", fields: [calculatedById], references: [id])
+  approvedBy    User?         @relation("payrollRunApprovedBy", fields: [approvedById], references: [id])
+  finalizedBy   User?         @relation("payrollRunFinalizedBy", fields: [finalizedById], references: [id])
+
+  employeeLines PayrollEmployeeLine[]
+  approvals     PayrollApproval[]
+  disbursements PayrollDisbursement[]
+  payslips      Payslip[]
+
+  userPayrollRun  User[]              @relation("userPayrollRun")
+  tipPoolPostings TipPool[]           @relation("tipPoolPostedToPayroll")
+  scPoolPostings  ServiceChargePool[] @relation("scPoolPostedToPayroll")
+
+  @@unique([restaurantId, payrollRunNumber])
+  @@index([payrollPeriodId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PayrollEmployeeLine {
+  id                        String                    @id @default(uuid())
+  restaurantId              String
+  payrollRunId              String
+  userId                    String
+  employeeCodeSnapshot      String
+  employeeNameSnapshot      String
+  jobTitleSnapshot          String?
+  employmentTypeSnapshot    String
+  payBasisSnapshot          String
+  compensationEffectiveDate DateTime?
+  baseRateSnapshot          Decimal?
+  standardHours             Decimal?
+  workedHours               Decimal?
+  paidLeaveHours            Decimal?
+  unpaidLeaveHours          Decimal?
+  overtimeHours             Decimal?
+  basePay                   Decimal?
+  overtimePay               Decimal?
+  allowanceTotal            Decimal?
+  bonusTotal                Decimal?
+  tipTotal                  Decimal?
+  serviceChargeTotal        Decimal?
+  grossEarnings             Decimal?
+  employeeDeductionTotal    Decimal?
+  employerContributionTotal Decimal?
+  advanceRepaymentTotal     Decimal?
+  netPay                    Decimal?
+  amountPaid                Decimal                   @default(0)
+  amountDue                 Decimal?
+  status                    PayrollEmployeeLineStatus @default(DRAFT)
+  reviewReason              String?
+  approvedAt                DateTime?
+  approvedById              String?
+  finalizedAt               DateTime?
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  payrollRun PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  approvedBy User?      @relation("payrollLineApprovedBy", fields: [approvedById], references: [id])
+
+  lineItems            PayrollLineItem[]
+  advanceRepayments    StaffAdvanceRepayment[]
+  payslips             Payslip[]
+  payrollDisbursements PayrollDisbursement[]
+
+  @@unique([payrollRunId, userId])
+  @@index([payrollRunId])
+  @@index([userId])
+  @@index([status])
+}
+
+model PayrollLineItem {
+  id                           String                    @id @default(uuid())
+  restaurantId                 String
+  payrollEmployeeLineId        String
+  payrollComponentDefinitionId String?
+  componentCodeSnapshot        String
+  componentNameSnapshot        String
+  componentType                PayrollComponentType
+  calculationMethodSnapshot    String
+  quantity                     Decimal?
+  rate                         Decimal?
+  percentage                   Decimal?
+  amount                       Decimal
+  sourceType                   PayrollLineItemSourceType
+  sourceId                     String?
+  description                  String?
+  isEmployerOnly               Boolean                   @default(false)
+  displayOnPayslip             Boolean                   @default(true)
+  createdAt                    DateTime                  @default(now())
+
+  payrollEmployeeLine PayrollEmployeeLine @relation(fields: [payrollEmployeeLineId], references: [id], onDelete: Cascade)
+  restaurant          Restaurant          @relation(fields: [restaurantId], references: [id])
+
+  @@index([payrollEmployeeLineId])
+  @@index([componentType])
+}
+
+model PayrollApproval {
+  id            String                @id @default(uuid())
+  restaurantId  String
+  payrollRunId  String
+  status        PayrollApprovalStatus @default(PENDING)
+  requestedById String
+  requestedAt   DateTime?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reason        String?
+  createdAt     DateTime              @default(now())
+
+  payrollRun  PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  requestedBy User       @relation("payrollApprovalRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?      @relation("payrollApprovalReviewedBy", fields: [reviewedById], references: [id])
+
+  userPayrollApproval User[] @relation("userPayrollApproval")
+
+  @@index([payrollRunId])
+  @@index([status])
+}
+
+model PayrollDisbursement {
+  id                        String                    @id @default(uuid())
+  restaurantId              String
+  payrollDisbursementNumber String
+  payrollRunId              String
+  payrollEmployeeLineId     String
+  userId                    String
+  paymentDate               DateTime
+  paymentMethod             PayrollPaymentMethod
+  status                    PayrollDisbursementStatus @default(DRAFT)
+  amount                    Decimal
+  referenceNumber           String?
+  providerName              String?
+  cashierSessionId          String?
+  notes                     String?
+  idempotencyKey            String?
+  postedById                String?
+  postedAt                  DateTime?
+  reversedById              String?
+  reversedAt                DateTime?
+  reversalReason            String?
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  payrollRun          PayrollRun          @relation(fields: [payrollRunId], references: [id])
+  payrollEmployeeLine PayrollEmployeeLine @relation(fields: [payrollEmployeeLineId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+  restaurant          Restaurant          @relation(fields: [restaurantId], references: [id])
+  postedBy            User?               @relation("disbursementPostedBy", fields: [postedById], references: [id])
+  reversedBy          User?               @relation("disbursementReversedBy", fields: [reversedById], references: [id])
+
+  @@unique([restaurantId, payrollDisbursementNumber])
+  @@index([payrollRunId])
+  @@index([payrollEmployeeLineId])
+  @@index([userId])
+  @@index([status])
+  @@index([paymentDate])
+}
+
+model Payslip {
+  id                            String        @id @default(uuid())
+  restaurantId                  String
+  payslipNumber                 String
+  payrollRunId                  String
+  payrollEmployeeLineId         String
+  userId                        String
+  status                        PayslipStatus @default(ISSUED)
+  employeeSnapshot              Json
+  earningsSnapshot              Json
+  deductionsSnapshot            Json
+  employerContributionsSnapshot Json?
+  summarySnapshot               Json
+  issuedAt                      DateTime      @default(now())
+  issuedById                    String
+  voidedAt                      DateTime?
+  voidedById                    String?
+  voidReason                    String?
+  replacedByPayslipId           String?
+  createdAt                     DateTime      @default(now())
+
+  payrollRun          PayrollRun          @relation(fields: [payrollRunId], references: [id])
+  payrollEmployeeLine PayrollEmployeeLine @relation(fields: [payrollEmployeeLineId], references: [id])
+  user                User                @relation(fields: [userId], references: [id])
+  restaurant          Restaurant          @relation(fields: [restaurantId], references: [id])
+  issuedBy            User                @relation("payslipIssuedBy", fields: [issuedById], references: [id])
+  voidedBy            User?               @relation("payslipVoidedBy", fields: [voidedById], references: [id])
+
+  @@unique([restaurantId, payslipNumber])
+  @@index([payrollRunId])
+  @@index([userId])
+  @@index([status])
+  @@index([issuedAt])
+}
+
+model StaffAdvance {
+  id                                String             @id @default(uuid())
+  restaurantId                      String
+  advanceNumber                     String
+  userId                            String
+  requestDate                       DateTime
+  requestedAmount                   Decimal
+  approvedAmount                    Decimal?
+  disbursedAmount                   Decimal            @default(0)
+  repaidAmount                      Decimal            @default(0)
+  outstandingAmount                 Decimal            @default(0)
+  currency                          String             @default("RWF")
+  status                            StaffAdvanceStatus @default(DRAFT)
+  reason                            String
+  requestedRepaymentAmountPerPeriod Decimal?
+  approvedRepaymentAmountPerPeriod  Decimal?
+  plannedStartPeriodId              String?
+  requestedById                     String
+  submittedAt                       DateTime?
+  approvedAt                        DateTime?
+  approvedById                      String?
+  rejectedAt                        DateTime?
+  rejectedById                      String?
+  rejectionReason                   String?
+  disbursedAt                       DateTime?
+  disbursedById                     String?
+  paymentMethod                     String?
+  paymentReference                  String?
+  cashierSessionId                  String?
+  writtenOffAt                      DateTime?
+  writtenOffById                    String?
+  writeOffReason                    String?
+  createdAt                         DateTime           @default(now())
+  updatedAt                         DateTime           @updatedAt
+
+  user         User       @relation(fields: [userId], references: [id])
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  requestedBy  User       @relation("advanceRequestedBy", fields: [requestedById], references: [id])
+  approvedBy   User?      @relation("advanceApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy   User?      @relation("advanceRejectedBy", fields: [rejectedById], references: [id])
+  disbursedBy  User?      @relation("advanceDisbursedBy", fields: [disbursedById], references: [id])
+  writtenOffBy User?      @relation("advanceWrittenOffBy", fields: [writtenOffById], references: [id])
+
+  repayments StaffAdvanceRepayment[]
+
+  @@unique([restaurantId, advanceNumber])
+  @@index([userId])
+  @@index([status])
+  @@index([requestDate])
+}
+
+model StaffAdvanceRepayment {
+  id                    String                      @id @default(uuid())
+  restaurantId          String
+  staffAdvanceId        String
+  userId                String
+  repaymentDate         DateTime
+  repaymentMethod       StaffAdvanceRepaymentMethod
+  amount                Decimal
+  payrollEmployeeLineId String?
+  cashierSessionId      String?
+  referenceNumber       String?
+  status                AdvanceRepaymentStatus      @default(POSTED)
+  recordedById          String
+  reversedAt            DateTime?
+  reversedById          String?
+  reversalReason        String?
+  createdAt             DateTime                    @default(now())
+
+  staffAdvance        StaffAdvance         @relation(fields: [staffAdvanceId], references: [id])
+  user                User                 @relation(fields: [userId], references: [id])
+  payrollEmployeeLine PayrollEmployeeLine? @relation(fields: [payrollEmployeeLineId], references: [id])
+  restaurant          Restaurant           @relation(fields: [restaurantId], references: [id])
+  recordedBy          User                 @relation("repaymentRecordedBy", fields: [recordedById], references: [id])
+  reversedBy          User?                @relation("repaymentReversedBy", fields: [reversedById], references: [id])
+
+  @@index([staffAdvanceId])
+  @@index([userId])
+  @@index([payrollEmployeeLineId])
+  @@index([repaymentDate])
+}
+
+model CustomerTip {
+  id                    String    @id @default(uuid())
+  restaurantId          String
+  tipNumber             String
+  orderId               String
+  paymentId             String?
+  paymentMethod         String
+  amount                Decimal
+  status                TipStatus @default(RECORDED)
+  directRecipientUserId String?
+  tipPoolId             String?
+  recordedById          String
+  recordedAt            DateTime  @default(now())
+  reversedAt            DateTime?
+  reversedById          String?
+  reversalReason        String?
+  createdAt             DateTime  @default(now())
+
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id])
+  recordedBy      User       @relation("tipRecordedBy", fields: [recordedById], references: [id])
+  reversedBy      User?      @relation("tipReversedBy", fields: [reversedById], references: [id])
+  directRecipient User?      @relation("tipDirectRecipient", fields: [directRecipientUserId], references: [id])
+
+  userCustomerTip User[] @relation("userCustomerTip")
+
+  @@unique([restaurantId, tipNumber])
+  @@index([orderId])
+  @@index([paymentId])
+  @@index([directRecipientUserId])
+  @@index([status])
+  @@index([recordedAt])
+}
+
+model TipPool {
+  id                     String                 @id @default(uuid())
+  restaurantId           String
+  tipPoolNumber          String
+  name                   String
+  startDate              DateTime
+  endDate                DateTime
+  allocationMethod       TipAllocationMethod
+  status                 DistributionPoolStatus @default(DRAFT)
+  totalTipAmount         Decimal                @default(0)
+  distributableAmount    Decimal                @default(0)
+  undistributedAmount    Decimal                @default(0)
+  includedPaymentMethods Json?
+  eligibleRoles          Json?
+  notes                  String?
+  calculatedAt           DateTime?
+  calculatedById         String?
+  approvedAt             DateTime?
+  approvedById           String?
+  postedToPayrollRunId   String?
+  createdById            String
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
+  createdBy       User        @relation("tipPoolCreatedBy", fields: [createdById], references: [id])
+  calculatedBy    User?       @relation("tipPoolCalculatedBy", fields: [calculatedById], references: [id])
+  approvedBy      User?       @relation("tipPoolApprovedBy", fields: [approvedById], references: [id])
+  postedToPayroll PayrollRun? @relation("tipPoolPostedToPayroll", fields: [postedToPayrollRunId], references: [id])
+
+  allocations TipPoolAllocation[]
+
+  userTipPool User[] @relation("userTipPool")
+
+  @@unique([restaurantId, tipPoolNumber])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+  @@index([postedToPayrollRunId])
+}
+
+model TipPoolAllocation {
+  id                    String                       @id @default(uuid())
+  restaurantId          String
+  tipPoolId             String
+  userId                String
+  allocationBasis       String
+  basisValue            Decimal?
+  allocationPercentage  Decimal?
+  allocatedAmount       Decimal
+  payrollEmployeeLineId String?
+  status                DistributionAllocationStatus @default(CALCULATED)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  tipPool    TipPool    @relation(fields: [tipPoolId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  @@unique([tipPoolId, userId])
+  @@index([tipPoolId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ServiceChargePool {
+  id                          String                          @id @default(uuid())
+  restaurantId                String
+  serviceChargePoolNumber     String
+  name                        String
+  startDate                   DateTime
+  endDate                     DateTime
+  distributionMethod          ServiceChargeDistributionMethod
+  status                      DistributionPoolStatus          @default(DRAFT)
+  totalServiceChargeCollected Decimal                         @default(0)
+  restaurantRetainedAmount    Decimal                         @default(0)
+  distributableAmount         Decimal                         @default(0)
+  undistributedAmount         Decimal                         @default(0)
+  eligibleRoles               Json?
+  notes                       String?
+  calculationBasis            String                          @default("CASH_COLLECTED")
+  calculatedAt                DateTime?
+  calculatedById              String?
+  approvedAt                  DateTime?
+  approvedById                String?
+  postedToPayrollRunId        String?
+  createdById                 String
+  createdAt                   DateTime                        @default(now())
+  updatedAt                   DateTime                        @updatedAt
+
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id])
+  createdBy       User        @relation("scPoolCreatedBy", fields: [createdById], references: [id])
+  calculatedBy    User?       @relation("scPoolCalculatedBy", fields: [calculatedById], references: [id])
+  approvedBy      User?       @relation("scPoolApprovedBy", fields: [approvedById], references: [id])
+  postedToPayroll PayrollRun? @relation("scPoolPostedToPayroll", fields: [postedToPayrollRunId], references: [id])
+
+  allocations ServiceChargeAllocation[]
+
+  userServiceChargePool User[] @relation("userServiceChargePool")
+
+  @@unique([restaurantId, serviceChargePoolNumber])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([status])
+  @@index([postedToPayrollRunId])
+}
+
+model ServiceChargeAllocation {
+  id                    String                       @id @default(uuid())
+  restaurantId          String
+  serviceChargePoolId   String
+  userId                String
+  allocationBasis       String
+  basisValue            Decimal?
+  allocationPercentage  Decimal?
+  allocatedAmount       Decimal
+  payrollEmployeeLineId String?
+  status                DistributionAllocationStatus @default(CALCULATED)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+
+  serviceChargePool ServiceChargePool @relation(fields: [serviceChargePoolId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id])
+  restaurant        Restaurant        @relation(fields: [restaurantId], references: [id])
+
+  @@unique([serviceChargePoolId, userId])
+  @@index([serviceChargePoolId])
+  @@index([userId])
+  @@index([status])
+}
+
+model PayrollSettings {
+  id                                          String                           @id @default(uuid())
+  restaurantId                                String                           @unique
+  payrollEnabled                              Boolean                          @default(false)
+  defaultPayFrequency                         PayFrequency                     @default(MONTHLY)
+  payrollCurrency                             String                           @default("RWF")
+  payrollPeriodStartDay                       Int                              @default(1)
+  requirePayrollApproval                      Boolean                          @default(true)
+  preventPayrollSelfApproval                  Boolean                          @default(true)
+  requireEmployeeLineApproval                 Boolean                          @default(false)
+  attendanceRequiredForHourlyPayroll          Boolean                          @default(true)
+  approvedAttendanceOnly                      Boolean                          @default(true)
+  overtimeEnabled                             Boolean                          @default(true)
+  overtimeRequiresApproval                    Boolean                          @default(true)
+  overtimeRoundingMinutes                     Int                              @default(15)
+  allowNegativeNetPay                         Boolean                          @default(false)
+  cashPayrollRequiresCashierSession           Boolean                          @default(true)
+  leaveAccrualEnabled                         Boolean                          @default(false)
+  tipsEnabled                                 Boolean                          @default(false)
+  tipPoolingEnabled                           Boolean                          @default(false)
+  serviceChargeDistributionEnabled            Boolean                          @default(false)
+  serviceChargeEmployeeDistributionPercentage Decimal?                         @default(0)
+  defaultTipAllocationMethod                  TipAllocationMethod?
+  defaultServiceChargeDistributionMethod      ServiceChargeDistributionMethod?
+  advanceRepaymentEnabled                     Boolean                          @default(true)
+  maximumAdvancePercentageOfBasePay           Decimal                          @default(50)
+  payslipEnabled                              Boolean                          @default(true)
+  payslipPaperSize                            String                           @default("A4")
+  payslipShowEmployerContributions            Boolean                          @default(true)
+  statutoryCalculationMode                    StatutoryCalculationMode         @default(MANUAL_CONFIGURATION)
+  createdAt                                   DateTime                         @default(now())
+  updatedAt                                   DateTime                         @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+}

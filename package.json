@@ -1,0 +1,31 @@
+{
+  "name": "restaurant-pos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A professional full-stack restaurant point-of-sale, kitchen, inventory, receipt and staff-management system",
+  "scripts": {
+    "dev": "concurrently -n frontend,backend -c cyan,green \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "start:backend": "npm --prefix backend run start",
+    "start:frontend": "npm --prefix frontend run preview -- --host 0.0.0.0",
+    "build": "npm --prefix frontend run build && npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:backend": "npm --prefix backend run lint",
+    "verify": "npm --prefix backend run db:validate && npm --prefix backend run db:status && npm --prefix frontend run build && npm --prefix backend run build && npm --prefix frontend run lint && npm --prefix backend run lint",
+    "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install",
+    "db:create": "npm --prefix backend run db:create",
+    "db:migrate": "npm --prefix backend run db:migrate",
+    "db:seed": "npm --prefix backend run db:seed",
+    "db:studio": "npm --prefix backend run db:studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0"
+  }
+}
