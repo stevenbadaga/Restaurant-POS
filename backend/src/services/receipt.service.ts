@@ -55,6 +55,14 @@ export async function generateReceipt(
   if (!order) throw new NotFoundError('Order not found');
   if (order.restaurantId !== restaurantId) throw new ForbiddenError('Access denied');
 
+  // Fetch tips for this order
+  const tips = await prisma.customerTip.findMany({
+    where: { orderId, status: { not: 'REVERSED' } },
+    select: { amount: true, paymentMethod: true, directRecipientUserId: true },
+  });
+
+  const tipTotal = tips.reduce((sum, t) => sum.plus(toDecimal(t.amount)), new Decimal(0));
+
   // Check if receipt already exists
   const existing = await prisma.receipt.findFirst({
     where: { orderId, status: 'ISSUED' },
@@ -125,6 +133,7 @@ export async function generateReceipt(
         serviceChargeAmount: order.serviceCharge,
         discountAmount: order.discountAmount,
         totalAmount: roundMoney(totalAmount).toFixed(2),
+        tipAmount: roundMoney(tipTotal).toFixed(2),
         amountPaid: roundMoney(amountPaid).toFixed(2),
         changeAmount: roundMoney(changeAmount).toFixed(2),
         receiptFooterSnapshot: settings?.receiptFooter || null,
@@ -327,6 +336,7 @@ export async function getReceiptList(
       totalAmount: r.totalAmount,
       amountPaid: r.amountPaid,
       changeAmount: r.changeAmount,
+      tipAmount: r.tipAmount || '0.00',
       currency: r.currency,
       orderNumber: r.order.orderNumber,
       orderType: r.order.orderType,
@@ -636,6 +646,11 @@ export async function generateReceiptPdf(
     if (Number(receipt.discountAmount) > 0) {
       doc.text('Discount', { continued: true });
       doc.text(`-${formatAmount(receipt.discountAmount, receipt.currency)}`, { align: 'right' });
+    }
+
+    if (Number(receipt.tipAmount) > 0) {
+      doc.text('Tip', { continued: true });
+      doc.text(formatAmount(receipt.tipAmount, receipt.currency), { align: 'right' });
     }
 
     doc.font('Helvetica-Bold');

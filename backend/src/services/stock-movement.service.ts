@@ -3,6 +3,7 @@ import { prisma } from '../database';
 import { createAuditLog } from './audit.service';
 import { ensureDefaultLocation } from './inventory-location.service';
 import { toDecimal, roundQuantity } from './calculation.service';
+import { getUsersByRole } from './notification.service';
 
 export const adjustmentSchema = z.object({
   inventoryItemId: z.string().uuid(),
@@ -12,6 +13,15 @@ export const adjustmentSchema = z.object({
   reason: z.string().min(1).max(500),
   referenceNumber: z.string().optional(),
   notes: z.string().optional(),
+});
+
+export const transferSchema = z.object({
+  inventoryItemId: z.string().uuid(),
+  fromLocationId: z.string().uuid(),
+  toLocationId: z.string().uuid(),
+  quantity: z.number().positive(),
+  reason: z.string().min(1).max(500),
+  referenceNumber: z.string().optional(),
 });
 
 export async function createAdjustment(
@@ -26,8 +36,37 @@ export async function createAdjustment(
   const decreaseTypes = ['MANUAL_ADJUSTMENT_OUT', 'WASTAGE'];
   const isDecrease = decreaseTypes.includes(data.movementType);
 
-  // Stock keeper decreases may require manager confirmation
+  // Stock keeper decreases create a pending notification for managers instead of executing
   if (isDecrease && isStockKeeper && !isAdminOrManager) {
+    // Check for existing pending approval notification to prevent duplicates
+    const existing = await prisma.appNotification.findFirst({
+      where: {
+        restaurantId,
+        type: 'APPROVAL_NEEDED',
+        entityId: data.inventoryItemId,
+        isRead: false,
+      },
+    });
+    if (!existing) {
+      const managerIds = await getUsersByRole(restaurantId, ['MANAGER']);
+      const itemPreview = await prisma.inventoryItem.findUnique({
+        where: { id: data.inventoryItemId },
+        select: { name: true, baseUnit: true },
+      });
+      for (const mgrId of managerIds) {
+        await prisma.appNotification.create({
+          data: {
+            restaurantId,
+            userId: mgrId,
+            type: 'APPROVAL_NEEDED',
+            title: `Stock Adjustment Requested — ${data.movementType}`,
+            message: `${data.quantity} ${itemPreview?.baseUnit?.toLowerCase() || 'units'} of "${itemPreview?.name || ''}" — ${data.reason}. Needs manager approval.`,
+            entityType: 'stock_adjustment',
+            entityId: data.inventoryItemId,
+          },
+        });
+      }
+    }
     throw new Error('Stock decrease adjustments require ADMIN or MANAGER approval');
   }
 
@@ -109,6 +148,139 @@ export async function createAdjustment(
     });
 
     return movement;
+  });
+}
+
+export async function createTransfer(
+  restaurantId: string,
+  data: z.infer<typeof transferSchema>,
+  userId: string,
+  ipAddress?: string
+) {
+  if (data.fromLocationId === data.toLocationId) {
+    throw new Error('Source and destination locations must be different');
+  }
+
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: data.inventoryItemId, restaurantId },
+  });
+  if (!item) throw new Error('Inventory item not found');
+
+  return prisma.$transaction(async (tx) => {
+    // Decrement source balance
+    const sourceBalance = await tx.inventoryBalance.upsert({
+      where: {
+        inventoryItemId_stockLocationId: {
+          inventoryItemId: data.inventoryItemId,
+          stockLocationId: data.fromLocationId,
+        },
+      },
+      create: {
+        restaurantId,
+        inventoryItemId: data.inventoryItemId,
+        stockLocationId: data.fromLocationId,
+        onHandQuantity: 0,
+        reservedQuantity: 0,
+      },
+      update: {},
+    });
+
+    if (Number(sourceBalance.onHandQuantity) < data.quantity) {
+      throw new Error(`Insufficient stock at source location. Available: ${Number(sourceBalance.onHandQuantity)}, Requested: ${data.quantity}`);
+    }
+
+    const sourceNewOnHand = roundQuantity(Number(sourceBalance.onHandQuantity) - data.quantity);
+
+    await tx.inventoryBalance.update({
+      where: {
+        inventoryItemId_stockLocationId: {
+          inventoryItemId: data.inventoryItemId,
+          stockLocationId: data.fromLocationId,
+        },
+      },
+      data: { onHandQuantity: sourceNewOnHand },
+    });
+
+    // Increment destination balance
+    const destBalance = await tx.inventoryBalance.upsert({
+      where: {
+        inventoryItemId_stockLocationId: {
+          inventoryItemId: data.inventoryItemId,
+          stockLocationId: data.toLocationId,
+        },
+      },
+      create: {
+        restaurantId,
+        inventoryItemId: data.inventoryItemId,
+        stockLocationId: data.toLocationId,
+        onHandQuantity: data.quantity,
+        reservedQuantity: 0,
+      },
+      update: {
+        onHandQuantity: { increment: data.quantity },
+      },
+    });
+
+    const destNewOnHand = Number(destBalance.onHandQuantity) + data.quantity;
+
+    // Create out movement
+    const outMovement = await tx.stockMovement.create({
+      data: {
+        restaurantId,
+        inventoryItemId: data.inventoryItemId,
+        stockLocationId: data.fromLocationId,
+        movementType: 'TRANSFER_OUT',
+        quantity: data.quantity,
+        quantityBefore: Number(sourceBalance.onHandQuantity),
+        quantityAfter: sourceNewOnHand,
+        reservedBefore: Number(sourceBalance.reservedQuantity),
+        reservedAfter: Number(sourceBalance.reservedQuantity),
+        unitCost: Number(item.averageCost || 0),
+        totalCost: Number(toDecimal(data.quantity).mul(Number(item.averageCost || 0))),
+        actorUserId: userId,
+        reason: `Transfer to ${data.toLocationId}: ${data.reason}`,
+        referenceNumber: data.referenceNumber || null,
+        metadata: { transferTo: data.toLocationId },
+      },
+    });
+
+    // Create in movement
+    await tx.stockMovement.create({
+      data: {
+        restaurantId,
+        inventoryItemId: data.inventoryItemId,
+        stockLocationId: data.toLocationId,
+        movementType: 'TRANSFER_IN',
+        quantity: data.quantity,
+        quantityBefore: Number(destBalance.onHandQuantity),
+        quantityAfter: destNewOnHand,
+        reservedBefore: Number(destBalance.reservedQuantity),
+        reservedAfter: Number(destBalance.reservedQuantity),
+        unitCost: Number(item.averageCost || 0),
+        totalCost: Number(toDecimal(data.quantity).mul(Number(item.averageCost || 0))),
+        actorUserId: userId,
+        reason: `Transfer from ${data.fromLocationId}: ${data.reason}`,
+        referenceNumber: data.referenceNumber || null,
+        metadata: { transferFrom: data.fromLocationId },
+      },
+    });
+
+    await createAuditLog({
+      restaurantId, userId,
+      action: 'STOCK_TRANSFER',
+      entityType: 'InventoryItem',
+      entityId: data.inventoryItemId,
+      description: `${data.quantity} ${item.baseUnit.toLowerCase()} of "${item.name}" transferred`,
+      metadata: {
+        fromLocation: data.fromLocationId,
+        toLocation: data.toLocationId,
+        quantity: data.quantity,
+        reason: data.reason,
+      },
+      ipAddress,
+    });
+
+    return outMovement;
   });
 }
 

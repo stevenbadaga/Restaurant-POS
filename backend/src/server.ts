@@ -4,6 +4,7 @@ import app from './app';
 import { env } from './config';
 import { prisma } from './database/prisma';
 import { initializeSocketHandlers } from './sockets';
+import { setSocketIOInstance } from './sockets/emitter';
 
 const server = http.createServer(app);
 
@@ -15,6 +16,9 @@ const io = new SocketIOServer(server, {
     methods: ['GET', 'POST'],
   },
 });
+
+// Store io instance for route-level emission
+setSocketIOInstance(io);
 
 initializeSocketHandlers(io);
 

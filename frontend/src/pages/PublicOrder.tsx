@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Truck, Store, ArrowRight, ChevronRight } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingBag, Truck, Store, ArrowRight, ChevronRight, Coffee } from 'lucide-react';
 import api from '@/services/api';
 import { useCart } from '@/contexts/CartContext';
 
 export default function PublicOrder() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { itemCount, tableName, isDineIn: hasTable } = useCart();
   const [options, setOptions] = useState<{ pickupEnabled: boolean; deliveryEnabled: boolean } | null>(null);
   const [restaurant, setRestaurant] = useState<{ name: string; isOpen: boolean; currentStatus: string } | null>(null);
-  const { itemCount } = useCart();
-  const navigate = useNavigate();
+
+  // If ?dinein=1 is set, auto-navigate to dine-in checkout
+  useEffect(() => {
+    if (searchParams.get('dinein') === '1' && hasTable) {
+      navigate('/order/checkout?type=dinein', { replace: true });
+    }
+  }, [searchParams, hasTable, navigate]);
 
   useEffect(() => {
     async function load() {
@@ -48,12 +56,25 @@ export default function PublicOrder() {
         </div>
       )}
 
+      {/* Table context banner */}
+      {hasTable && (
+        <div className="mb-8 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+          <Coffee className="h-5 w-5 text-emerald-600 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-emerald-800">
+              Ordering for Table {tableName}
+            </p>
+            <p className="text-xs text-emerald-600">Your food will be prepared and brought to your table.</p>
+          </div>
+        </div>
+      )}
+
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold text-gray-900">Place Your Order</h1>
         <p className="text-gray-500 mt-2">
           {restaurant?.name ? `Order from ${restaurant.name}` : 'Choose how you\'d like to receive your order'}
         </p>
-        {!isOpen && (
+        {!isOpen && !hasTable && (
           <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium">
             <Store className="h-4 w-4" />
             {restaurant?.currentStatus === 'paused' ? 'Online ordering is currently paused' : 'Restaurant is currently closed'}
@@ -62,6 +83,26 @@ export default function PublicOrder() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Dine-in (QR Table) */}
+        {hasTable && (
+          <button
+            onClick={() => navigate('/order/checkout?type=dinein')}
+            className="group relative bg-white rounded-2xl border-2 border-emerald-200 p-8 text-left hover:border-emerald-400 hover:shadow-xl transition-all duration-300 shadow-sm"
+          >
+            <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center mb-5 group-hover:bg-emerald-100 transition-colors">
+              <Coffee className="h-7 w-7 text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Order to Table</h2>
+            <p className="text-gray-500 text-sm leading-relaxed mb-4">
+              Order food directly to <strong>{tableName}</strong>. Pay at the cashier when you're done.
+            </p>
+            <div className="flex items-center gap-1 text-emerald-600 font-medium text-sm group-hover:gap-2 transition-all">
+              Order to table
+              <ArrowRight className="h-4 w-4" />
+            </div>
+          </button>
+        )}
+
         {/* Pickup */}
         {options?.pickupEnabled !== false && (
           <button

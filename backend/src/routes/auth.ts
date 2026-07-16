@@ -80,7 +80,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 });
 
 // POST /api/auth/logout
-router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/logout', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const rawRefreshToken = req.cookies?.[REFRESH_COOKIE];
     const userId = req.user?.id;

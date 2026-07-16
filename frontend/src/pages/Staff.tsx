@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Edit3, Plus, RefreshCw, Users, X } from 'lucide-react';
 import { PageHeader, Card, CardContent, Button, EmptyState, Loading } from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
 import api from '@/services/api';
 
 interface StaffMember {
@@ -17,6 +18,10 @@ interface StaffMember {
 const roles = ['ADMIN', 'MANAGER', 'WAITER', 'CHEF', 'CASHIER', 'STOCK_KEEPER'];
 
 export default function Staff() {
+  const { user } = useAuth();
+  const userRoles = user?.roles || [];
+  const canManage = userRoles.some((r) => ['ADMIN', 'MANAGER'].includes(r));
+
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -141,7 +146,7 @@ export default function Staff() {
         actions={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={loadStaff} leftIcon={<RefreshCw className="h-4 w-4" />}>Refresh</Button>
-            <Button onClick={openCreate} leftIcon={<Plus className="h-4 w-4" />}>Add Staff</Button>
+            {canManage && <Button onClick={openCreate} leftIcon={<Plus className="h-4 w-4" />}>Add Staff</Button>}
           </div>
         }
       />
@@ -149,7 +154,7 @@ export default function Staff() {
       {error && <Message tone="error">{error}</Message>}
       {success && <Message tone="success">{success}</Message>}
 
-      {showForm && (
+      {showForm && canManage && (
         <Card>
           <CardContent>
             <form onSubmit={submitStaff} className="space-y-4">
@@ -222,17 +227,25 @@ export default function Staff() {
                       <td className="px-3 py-3 text-[var(--color-text-secondary)]">{member.email}</td>
                       <td className="px-3 py-3 text-[var(--color-text-secondary)]">{member.roles.join(', ')}</td>
                       <td className="px-3 py-3">
-                        <select value={member.status} onChange={(e) => changeStatus(member, e.target.value as StaffMember['status'])} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-2 py-1 text-xs">
-                          <option value="ACTIVE">Active</option>
-                          <option value="INACTIVE">Inactive</option>
-                          <option value="SUSPENDED">Suspended</option>
-                        </select>
+                        {canManage ? (
+                          <select value={member.status} onChange={(e) => changeStatus(member, e.target.value as StaffMember['status'])} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-2 py-1 text-xs">
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                            <option value="SUSPENDED">Suspended</option>
+                          </select>
+                        ) : (
+                          <span className={member.status === 'ACTIVE' ? badgeGreen : badgeRed}>
+                            {member.status}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-end">
-                          <button onClick={() => openEdit(member)} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">
-                            <Edit3 className="h-4 w-4" />
-                          </button>
+                          {canManage && (
+                            <button onClick={() => openEdit(member)} className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]" title="Edit staff">
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -257,6 +270,9 @@ function Message({ tone, children }: { tone: 'success' | 'error'; children: Reac
     : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300';
   return <div className={`rounded-lg border px-4 py-3 text-sm ${styles}`}>{children}</div>;
 }
+
+const badgeGreen = 'rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-950/40 dark:text-green-300';
+const badgeRed = 'rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { QrCode, Store, AlertTriangle, ArrowRight, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { QrCode, Store, AlertTriangle, ArrowRight, ShoppingBag, UtensilsCrossed, Coffee } from 'lucide-react';
 import api from '@/services/api';
 import { useCart } from '@/contexts/CartContext';
 
@@ -17,7 +17,7 @@ export default function QrMenu() {
   const [restaurant, setRestaurant] = useState<{ name: string; logoUrl: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { setRestaurantId, itemCount } = useCart();
+  const { setRestaurantId, setTableContext, itemCount, tableId } = useCart();
 
   useEffect(() => {
     if (!tableToken) {
@@ -32,6 +32,7 @@ export default function QrMenu() {
         const data = res.data.data;
         setValidation(data);
         setRestaurantId(data.restaurantId);
+        setTableContext(data.tableId, data.tableName);
 
         // Fetch restaurant info
         const restRes = await api.get('/public/restaurant');
@@ -43,7 +44,7 @@ export default function QrMenu() {
       }
     }
     validate();
-  }, [tableToken, setRestaurantId]);
+  }, [tableToken, setRestaurantId, setTableContext]);
 
   if (loading) {
     return (
@@ -122,11 +123,19 @@ export default function QrMenu() {
           <ArrowRight className="h-4 w-4" />
         </Link>
         <Link
+          to="/order?dinein=1"
+          className="w-full py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
+        >
+          <Coffee className="h-5 w-5" />
+          Order to Table
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+        <Link
           to="/order"
           className="w-full py-3.5 border-2 border-gray-200 text-gray-700 rounded-xl font-medium hover:border-amber-300 hover:text-amber-600 transition-all flex items-center justify-center gap-2"
         >
           <UtensilsCrossed className="h-5 w-5" />
-          Order Food
+          Order for Pickup / Delivery
         </Link>
       </div>
 

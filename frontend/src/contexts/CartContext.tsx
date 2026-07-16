@@ -17,7 +17,10 @@ interface CartItem {
 interface CartContextType {
   items: CartItem[];
   restaurantId: string | null;
+  tableId: string | null;
+  tableName: string | null;
   setRestaurantId: (id: string | null) => void;
+  setTableContext: (tableId: string | null, tableName: string | null) => void;
   addItem: (item: Omit<CartItem, 'id'>) => void;
   removeItem: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, quantity: number) => void;
@@ -25,6 +28,7 @@ interface CartContextType {
   clearCart: () => void;
   itemCount: number;
   estimatedSubtotal: number;
+  isDineIn: boolean;
 }
 
 const CART_STORAGE_KEY = 'public_cart';
@@ -32,6 +36,8 @@ const CART_EXPIRY_HOURS = 4;
 
 interface StoredCart {
   restaurantId: string | null;
+  tableId: string | null;
+  tableName: string | null;
   items: CartItem[];
   createdAt: string;
 }
@@ -39,7 +45,7 @@ interface StoredCart {
 function loadCart(): StoredCart {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    if (!stored) return { restaurantId: null, items: [], createdAt: new Date().toISOString() };
+    if (!stored) return { restaurantId: null, tableId: null, tableName: null, items: [], createdAt: new Date().toISOString() };
 
     const cart: StoredCart = JSON.parse(stored);
 
@@ -49,12 +55,12 @@ function loadCart(): StoredCart {
     const hoursSinceCreation = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
     if (hoursSinceCreation > CART_EXPIRY_HOURS) {
       localStorage.removeItem(CART_STORAGE_KEY);
-      return { restaurantId: null, items: [], createdAt: now.toISOString() };
+      return { restaurantId: null, tableId: null, tableName: null, items: [], createdAt: now.toISOString() };
     }
 
     return cart;
   } catch {
-    return { restaurantId: null, items: [], createdAt: new Date().toISOString() };
+    return { restaurantId: null, tableId: null, tableName: null, items: [], createdAt: new Date().toISOString() };
   }
 }
 
@@ -70,13 +76,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const restaurantId = storedCart.restaurantId;
+  const tableId = storedCart.tableId;
+  const tableName = storedCart.tableName;
   const items = storedCart.items;
 
   const setRestaurantId = useCallback((id: string | null) => {
     if (id !== storedCart.restaurantId) {
-      persist({ restaurantId: id, items: [], createdAt: new Date().toISOString() });
+      persist({ restaurantId: id, tableId: null, tableName: null, items: [], createdAt: new Date().toISOString() });
     }
   }, [storedCart.restaurantId, persist]);
+
+  const setTableContext = useCallback((newTableId: string | null, newTableName: string | null) => {
+    setStoredCart((prev) => {
+      if (prev.tableId === newTableId) return prev;
+      const newCart = { ...prev, tableId: newTableId, tableName: newTableName };
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(newCart));
+      return newCart;
+    });
+  }, []);
 
   const addItem = useCallback((item: Omit<CartItem, 'id'>) => {
     const id = `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -135,9 +152,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearCart = useCallback(() => {
-    const newCart = { restaurantId: null, items: [], createdAt: new Date().toISOString() };
+    const newCart = { restaurantId: null, tableId: null, tableName: null, items: [], createdAt: new Date().toISOString() };
     persist(newCart);
   }, [persist]);
+
+  const isDineIn = !!tableId;
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const estimatedSubtotal = items.reduce(
@@ -150,7 +169,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       value={{
         items,
         restaurantId,
+        tableId,
+        tableName,
         setRestaurantId,
+        setTableContext,
         addItem,
         removeItem,
         updateQuantity,
@@ -158,6 +180,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         clearCart,
         itemCount,
         estimatedSubtotal,
+        isDineIn,
       }}
     >
       {children}

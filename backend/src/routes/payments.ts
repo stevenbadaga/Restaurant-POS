@@ -2,6 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../middleware/auth';
 import * as paymentService from '../services/payment.service';
+import * as notificationService from '../services/notification.service';
+import { emitNewNotification } from '../sockets';
+import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 
@@ -121,6 +124,27 @@ router.post('/:id/void', requireRole('ADMIN', 'MANAGER'), async (req: Request, r
       req.headers['user-agent']
     );
 
+    // Notify other managers about the void
+    try {
+      const io = getSocketIO();
+      const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
+      const otherManagers = managerIds.filter(id => id !== req.user!.id);
+      if (otherManagers.length > 0) {
+        const notifs = await notificationService.createBulkNotification({
+          restaurantId: req.user!.restaurantId,
+          userIds: otherManagers,
+          type: 'APPROVAL_NEEDED',
+          title: `Payment Voided — by ${req.user!.firstName} ${req.user!.lastName}`,
+          message: `${reason} (payment was already processed)`,
+          entityType: 'payment',
+          entityId: req.params.id,
+        });
+        for (const n of notifs) {
+          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
+        }
+      }
+    } catch (err) { console.error('Failed to notify managers about void:', err); }
+
     res.json({ success: true, message: 'Payment voided successfully', data: result });
   } catch (error) {
     next(error);
@@ -156,6 +180,27 @@ router.post('/:id/refund', requireRole('ADMIN', 'MANAGER'), async (req: Request,
       req.ip,
       req.headers['user-agent']
     );
+
+    // Notify other managers about the refund
+    try {
+      const io = getSocketIO();
+      const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
+      const otherManagers = managerIds.filter(id => id !== req.user!.id);
+      if (otherManagers.length > 0) {
+        const notifs = await notificationService.createBulkNotification({
+          restaurantId: req.user!.restaurantId,
+          userIds: otherManagers,
+          type: 'APPROVAL_NEEDED',
+          title: `Refund Issued — ${data.amount} via ${data.method}`,
+          message: `${data.reason} by ${req.user!.firstName} ${req.user!.lastName}`,
+          entityType: 'payment',
+          entityId: req.params.id,
+        });
+        for (const n of notifs) {
+          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
+        }
+      }
+    } catch (err) { console.error('Failed to notify managers about refund:', err); }
 
     res.json({ success: true, message: 'Refund issued successfully', data: result });
   } catch (error) {

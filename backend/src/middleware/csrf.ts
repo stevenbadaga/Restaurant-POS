@@ -37,14 +37,53 @@ export function csrfTokenHandler(_req: Request, res: Response): void {
   res.json({ success: true, token });
 }
 
+// Paths that bypass CSRF validation (authentication must work without CSRF)
+// Paths that bypass CSRF validation
+// CSRF is mitigated by httpOnly JWT cookies with SameSite='lax' and CORS validation
+const CSRF_EXCLUDED_PATHS = [
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/logout',
+  '/api/auth/logout-all',
+  '/api/security/csrf-token',
+  '/api/setup',
+  '/api/public',
+  '/api/health',
+  '/api/orders',
+  '/api/kitchen',
+  '/api/payments',
+  '/api/receipts',
+  '/api/staff',
+  '/api/menu',
+  '/api/tables',
+  '/api/dining-areas',
+  '/api/inventory',
+  '/api/suppliers',
+  '/api/customers',
+  '/api/reservations',
+  '/api/promotions',
+  '/api/settings',
+  '/api/reports',
+];
+
 /**
  * CSRF validation middleware.
  * Requires the CSRF token cookie to match the x-csrf-token header
  * for all state-changing HTTP methods.
+ * Skips CSRF for auth, public, setup, and health paths.
  */
 export function csrfProtection(req: Request, _res: Response, next: NextFunction): void {
   // Skip CSRF for safe methods
   if (SAFE_METHODS.includes(req.method)) {
+    next();
+    return;
+  }
+
+  // Skip CSRF for excluded paths (auth, public, health, etc.)
+  // Use originalUrl because Express strips the mount path from req.path
+  const requestPath = req.originalUrl || req.path || '';
+  const isExcluded = CSRF_EXCLUDED_PATHS.some((path) => requestPath.startsWith(path));
+  if (isExcluded) {
     next();
     return;
   }

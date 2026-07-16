@@ -1,7 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { stockMovementService } from '../services';
-import { adjustmentSchema } from '../services/stock-movement.service';
-import { requireAuth } from '../middleware/auth';
+import { adjustmentSchema, transferSchema } from '../services/stock-movement.service';
+import { requireAuth, requireRole } from '../middleware/auth';
+import * as notificationService from '../services/notification.service';
+import { emitNewNotification } from '../sockets';
+import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 router.use(requireAuth);
@@ -40,13 +43,45 @@ router.get('/alerts', asyncHandler(async (req: Request, res: Response) => {
   res.json({ success: true, data: alerts });
 }));
 
-router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => {
+router.post('/adjustments', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const userRoles = req.user?.roles ?? JSON.parse((req.headers['x-user-roles'] as string) || '[]');
   const data = adjustmentSchema.parse(req.body);
   const movement = await stockMovementService.createAdjustment(restaurantId, data, userId, userRoles);
+
+  // Notify managers about adjustments by non-admin users
+  try {
+    const isAdminOrManager = userRoles.includes('ADMIN') || userRoles.includes('MANAGER');
+    if (!isAdminOrManager) {
+      const io = getSocketIO();
+      const managerIds = await notificationService.getUsersByRole(restaurantId, ['MANAGER']);
+      if (managerIds.length > 0) {
+        const notifs = await notificationService.createBulkNotification({
+          restaurantId,
+          userIds: managerIds,
+          type: 'APPROVAL_NEEDED',
+          title: `Stock Adjustment Completed — ${data.movementType}`,
+          message: `${data.quantity} units — ${data.reason}`,
+          entityType: 'stock_adjustment',
+          entityId: data.inventoryItemId,
+        });
+        for (const n of notifs) {
+          emitNewNotification(io, restaurantId, n.userId, { notification: n });
+        }
+      }
+    }
+  } catch (err) { console.error('Failed to notify managers about adjustment:', err); }
+
   res.status(201).json({ success: true, data: movement, message: 'Adjustment recorded' });
+}));
+
+router.post('/transfer', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
+  const restaurantId = getRestaurantId(req);
+  const userId = getUserId(req);
+  const data = transferSchema.parse(req.body);
+  const movement = await stockMovementService.createTransfer(restaurantId, data, userId);
+  res.status(201).json({ success: true, data: movement, message: 'Stock transferred' });
 }));
 
 router.get('/usage/waiters', asyncHandler(async (req: Request, res: Response) => {

@@ -35,6 +35,7 @@ import waitingListRouter from './waiting-list';
 import loyaltyRouter from './loyalty';
 import promotionsRouter from './promotions';
 import orderDiscountsRouter from './order-discounts';
+import tipsRouter from './tips';
 import settingsRouter from './settings';
 import setupReadinessRouter from './setup-readiness';
 import publicRouter from './public';
@@ -86,6 +87,9 @@ router.use('/suppliers', suppliersRouter);
 // === Phase 5: Payments & Receipts ===
 router.use('/payments', paymentsRouter);
 router.use('/receipts', receiptsRouter);
+
+// === Tips & Tip Pooling ===
+router.use('/tips', tipsRouter);
 
 // === Phase 6: Reports ===
 router.use('/reports', reportRoutes);

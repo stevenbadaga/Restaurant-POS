@@ -111,6 +111,8 @@ export const recordPayment = async (orderId: string, data: {
   providerName?: string;
   notes?: string;
   idempotencyKey?: string;
+  tipAmount?: string;
+  tipMethod?: string;
 }) => {
   const response = await api.post(`/orders/${orderId}/payments`, data);
   return response.data;

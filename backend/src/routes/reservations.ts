@@ -2,8 +2,11 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { requireAuth} from '../middleware/auth';
 import * as reservationService from '../services/reservation.service';
+import * as notificationService from '../services/notification.service';
 import { BadRequestError } from '../types';
 import { prisma } from '../database';
+import { emitNewNotification } from '../sockets';
+import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 router.use(requireAuth);
@@ -99,6 +102,27 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const reservation = await reservationService.createReservation(
       req.user!.restaurantId, req.user!.id, parsed, settings, req.ip, req.headers['user-agent']
     );
+
+    // Notify managers about new reservation
+    try {
+      const io = getSocketIO();
+      const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
+      if (managerIds.length > 0) {
+        const notifs = await notificationService.createBulkNotification({
+          restaurantId: req.user!.restaurantId,
+          userIds: managerIds,
+          type: 'RESERVATION_CREATED',
+          title: `New Reservation — ${parsed.customerName}`,
+          message: `${parsed.partySize} guests at ${new Date(parsed.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          entityType: 'reservation',
+          entityId: reservation.id,
+        });
+        for (const n of notifs) {
+          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
+        }
+      }
+    } catch (err) { console.error('Failed to send reservation notification:', err); }
+
     res.status(201).json({ success: true, data: reservation });
   } catch (error) {
     if (error instanceof z.ZodError) next(new BadRequestError(error.errors[0].message));

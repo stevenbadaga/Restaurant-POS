@@ -247,6 +247,12 @@ enum NotificationType {
   KITCHEN_ITEM_READY
   ORDER_READY
   ORDER_CANCELLED
+  PAYMENT_RECEIVED
+  LOW_STOCK
+  RESERVATION_CREATED
+  WAITER_ASSIGNED
+  APPROVAL_NEEDED
+  TIP_RECEIVED
   SYSTEM
 }
 
@@ -801,6 +807,7 @@ model User {
   stockMovements                     StockMovement[]                     @relation("actorStockMovements")
   attributedStockMovements           StockMovement[]                     @relation("waiterStockMovements")
   ordersAsWaiter                     Order[]                             @relation("waiterOrders")
+  assignedTables                     RestaurantTable[]                   @relation("waiterAssignedTables")
   ordersAsClosedBy                   Order[]                             @relation("closedOrders")
   ordersAsCreatedBy                  Order[]                             @relation("createdOrders")
   ordersAsCancelledBy                Order[]                             @relation("cancelledOrders")
@@ -1050,8 +1057,11 @@ model RestaurantTable {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
+  assignedWaiterId  String?
+
   restaurant         Restaurant         @relation(fields: [restaurantId], references: [id])
   diningArea         DiningArea?        @relation(fields: [diningAreaId], references: [id])
+  assignedWaiter     User?              @relation("waiterAssignedTables", fields: [assignedWaiterId], references: [id])
   orders             Order[]
   customers          Customer[]         @relation("customerPreferredTable")
   waitingListEntries WaitingListEntry[]
@@ -1484,6 +1494,7 @@ model Receipt {
   serviceChargeAmount       Decimal
   discountAmount            Decimal
   totalAmount               Decimal
+  tipAmount                 Decimal                       @default(0)
   amountPaid                Decimal
   changeAmount              Decimal
   receiptFooterSnapshot     String?

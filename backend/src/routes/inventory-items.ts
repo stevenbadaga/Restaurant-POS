@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { inventoryItemService } from '../services';
 import { itemSchema, itemUpdateSchema } from '../services/inventory-item.service';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 router.use(requireAuth);
@@ -34,7 +34,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: item });
 }));
 
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = itemSchema.parse(req.body);
@@ -42,7 +42,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: item, message: 'Inventory item created' });
 }));
 
-router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = itemUpdateSchema.parse(req.body);
@@ -52,7 +52,7 @@ router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: item, message: 'Item updated' });
 }));
 
-router.patch('/:id/status', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/status', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const { isActive } = req.body;
@@ -79,7 +79,7 @@ router.get('/:id/movements', asyncHandler(async (req: Request, res: Response) =>
   return res.json({ success: true, ...result });
 }));
 
-router.post('/:id/opening-balance', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/opening-balance', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const { quantity, unitCost, locationId, reason } = req.body;

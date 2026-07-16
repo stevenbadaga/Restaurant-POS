@@ -517,6 +517,7 @@ function RoleSpecificDashboard({ data, role, navigate }: { data: any; role: stri
         <MetricCard label="My Closed Orders" value={String(data.myClosedOrders || 0)} icon={<ShoppingCart className="h-5 w-5" />} color="blue" />
         <MetricCard label="My Order Value" value={data.myOrderValue || '$0.00'} icon={<DollarSign className="h-5 w-5" />} color="green" />
         <MetricCard label="My Paid Value" value={data.myPaidValue || '$0.00'} icon={<TrendingUp className="h-5 w-5" />} color="teal" />
+        <MetricCard label="My Tips" value={data.myTipTotal || '$0.00'} subtitle={data.myTipCount ? `${data.myTipCount} tips` : undefined} icon={<DollarSign className="h-5 w-5" />} color="purple" />
         <MetricCard label="Outstanding Balance" value={data.myOutstandingBalance || '$0.00'} icon={<AlertTriangle className="h-5 w-5" />} color="amber" />
       </div>
     );

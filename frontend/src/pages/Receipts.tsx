@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Receipt,
   Search,
@@ -34,9 +35,11 @@ import {
   reprintReceipt,
   voidReceipt,
 } from '@/services/receipts';
+import { connectSocket, disconnectSocket } from '@/services/socket';
 import { formatCurrency, formatDate } from '@/lib';
 
 export default function Receipts() {
+  const { restaurant } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const view = searchParams.get('view') || 'list';
   const receiptId = searchParams.get('id');
@@ -52,6 +55,8 @@ export default function Receipts() {
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [showVoidDialog, setShowVoidDialog] = useState(false);
+  const socketConnected = useRef(false);
+
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const fetchList = useCallback(async () => {
@@ -96,6 +101,14 @@ export default function Receipts() {
       fetchDetail();
     }
   }, [view, fetchList, fetchDetail]);
+
+  // Socket.IO real-time
+  useEffect(() => {
+    const socket = connectSocket(restaurant?.id || '');
+    socket.on('receipt:issued', () => { if (view === 'list') fetchList(); });
+    socket.on('receipt:voided', () => { if (view === 'list') fetchList(); else if (receiptId || orderId) fetchDetail(); });
+    return () => { socket.off('receipt:issued'); socket.off('receipt:voided'); socket.disconnect(); };
+  }, [view, receiptId, orderId, fetchList, fetchDetail]);
 
   const handlePrint = () => {
     if (!detail) return;
@@ -189,6 +202,7 @@ export default function Receipts() {
         <div class="info-row"><span>Tax</span><span>${parseFloat(detail.taxAmount).toFixed(2)}</span></div>
         ${parseFloat(detail.serviceChargeAmount) > 0 ? `<div class="info-row"><span>Service Charge</span><span>${parseFloat(detail.serviceChargeAmount).toFixed(2)}</span></div>` : ''}
         ${parseFloat(detail.discountAmount) > 0 ? `<div class="info-row"><span>Discount</span><span>-${parseFloat(detail.discountAmount).toFixed(2)}</span></div>` : ''}
+        ${detail.tipAmount && parseFloat(detail.tipAmount) > 0 ? `<div class="info-row"><span>Tip</span><span>${parseFloat(detail.tipAmount).toFixed(2)}</span></div>` : ''}
         <div class="info-row total-row"><span>Total</span><span>${parseFloat(detail.totalAmount).toFixed(2)} ${detail.currency}</span></div>
         <div class="divider"></div>
         <p class="text-center" style="font-size:${isThermal ? '9px' : '11px'};"><strong>Payments</strong></p>
@@ -320,6 +334,9 @@ export default function Receipts() {
                   )}
                   {parseFloat(detail.discountAmount) > 0 && (
                     <div className="flex justify-between text-xs"><span>Discount</span><span>-{parseFloat(detail.discountAmount).toFixed(2)}</span></div>
+                  )}
+                  {detail.tipAmount && parseFloat(detail.tipAmount) > 0 && (
+                    <div className="flex justify-between text-xs"><span>Tip</span><span>{parseFloat(detail.tipAmount).toFixed(2)}</span></div>
                   )}
                   <div className="flex justify-between text-xs font-bold border-t border-dashed border-gray-400 pt-1"><span>Total</span><span>{parseFloat(detail.totalAmount).toFixed(2)} {detail.currency}</span></div>
                   <p className="text-center border-t border-dashed border-gray-400 my-1"></p>

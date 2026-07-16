@@ -240,3 +240,78 @@ export const emitDiscountRequestResolved = (io: SocketIOServer, restaurantId: st
 export const emitTableReservationUpdated = (io: SocketIOServer, restaurantId: string, data: any): void => {
   emitPaymentEvent(io, restaurantId, 'table:reservation-updated', data);
 };
+
+// ==========================================
+// Kitchen Events
+// ==========================================
+
+export const emitKitchenTicketCreated = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'kitchen:ticket-created', data);
+};
+
+export const emitKitchenTicketAccepted = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'kitchen:ticket-accepted', data);
+};
+
+export const emitKitchenTicketPreparing = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'kitchen:ticket-preparing', data);
+};
+
+export const emitKitchenTicketReady = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'kitchen:ticket-ready', data);
+};
+
+export const emitKitchenTicketCancelled = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'kitchen:ticket-cancelled', data);
+};
+
+export const emitOrderSubmittedToKitchen = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'order:submitted-to-kitchen', data);
+};
+
+export const emitOrderWaiterAssigned = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'order:waiter-assigned', data);
+};
+
+export const emitOrderWaiterUnassigned = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'order:waiter-unassigned', data);
+};
+
+// ==========================================
+// Table Waiter Assignment Events
+// ==========================================
+
+export const emitTableWaiterAssigned = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'table:waiter-assigned', data);
+};
+
+export const emitTableWaiterUnassigned = (io: SocketIOServer, restaurantId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'table:waiter-unassigned', data);
+};
+
+// ==========================================
+// Tip Events
+// ==========================================
+
+export const emitTipRecorded = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'tip:recorded', data);
+  emitUserEvent(io, userId, 'tip:recorded', data);
+};
+
+export const emitTipReversed = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {
+  emitPaymentEvent(io, restaurantId, 'tip:reversed', data);
+  emitUserEvent(io, userId, 'tip:reversed', data);
+};
+
+// ==========================================
+// Notification Events
+// ==========================================
+
+export const emitNewNotification = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {
+  emitUserEvent(io, userId, 'notification:new', data);
+  emitPaymentEvent(io, restaurantId, 'notification:new', data);
+};
+
+export const emitUnreadCountUpdate = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {
+  emitUserEvent(io, userId, 'notification:unread-count', data);
+};

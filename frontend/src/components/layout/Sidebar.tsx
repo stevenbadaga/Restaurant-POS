@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Grid3x3,
+  Bell,
   ClipboardList,
   ClipboardCheck,
   QrCode,
@@ -28,6 +29,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 const mainNav = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { label: 'Notifications', path: '/notifications', icon: Bell },
   { label: 'My Shift', path: '/my-shift', icon: Clock },
   { label: 'Tables', path: '/tables', icon: Grid3x3 },
   { label: 'QR Codes', path: '/tables/qr-codes', icon: QrCode },
@@ -39,6 +41,7 @@ const managementNav = [
   { label: 'Menu', path: '/menu', icon: BookOpen },
   { label: 'Inventory', path: '/inventory', icon: Package },
   { label: 'Payments', path: '/payments', icon: CreditCard },
+  { label: 'Tips & Pooling', path: '/tips', icon: DollarSign },
   { label: 'Receipts', path: '/receipts', icon: Receipt },
 ];
 

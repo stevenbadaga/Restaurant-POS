@@ -1,11 +1,12 @@
 import { prisma } from '../database/prisma';
 import crypto from 'crypto';
 import { checkOpeningHours } from './public.service';
+import { emitToRestaurant } from '../sockets/emitter';
 
 // ─── Types ───────────────────────────────────────────────
 
 interface CreateOrderInput {
-  orderType: 'PICKUP' | 'DELIVERY';
+  orderType: 'PICKUP' | 'DELIVERY' | 'DINE_IN';
   customerName: string;
   phone: string;
   email?: string;
@@ -27,6 +28,8 @@ interface CreateOrderInput {
     city: string;
   };
   deliveryInstructions?: string;
+  // Dine-in / QR Table
+  tableId?: string;
 }
 
 interface CreateReservationInput {
@@ -119,6 +122,61 @@ async function getSystemUserId(restaurantId: string): Promise<string> {
   return firstUser?.id || '';
 }
 
+// Auto-assign the best available waiter for a dine-in table order
+async function autoAssignWaiter(restaurantId: string, tableId?: string | null): Promise<string> {
+  // Find WAITER role users who are ACTIVE AND clocked in today
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const allWaiters = await prisma.user.findMany({
+    where: {
+      restaurantId,
+      status: 'ACTIVE',
+      roles: {
+        some: {
+          role: { name: 'WAITER' },
+        },
+      },
+    },
+    select: {
+      id: true,
+      _count: {
+        select: {
+          ordersAsWaiter: {
+            where: { status: { in: ['SUBMITTED', 'IN_PREPARATION', 'PARTIALLY_READY', 'READY', 'SERVED'] } },
+          },
+        },
+      },
+    },
+  });
+
+  if (allWaiters.length === 0) {
+    return getSystemUserId(restaurantId);
+  }
+
+  // Get waiter IDs who are clocked in today
+  const clockedInAssignments = await prisma.shiftAssignment.findMany({
+    where: {
+      restaurantId,
+      userId: { in: allWaiters.map(w => w.id) },
+      status: 'CLOCKED_IN',
+      clockedInAt: { gte: todayStart, lte: todayEnd },
+    },
+    select: { userId: true },
+  });
+  const clockedInIds = new Set(clockedInAssignments.map(a => a.userId));
+
+  // Prefer clocked-in waiters, then fall back to any active waiter
+  const eligible = allWaiters.filter(w => clockedInIds.has(w.id));
+  const candidates = eligible.length > 0 ? eligible : allWaiters;
+
+  // Sort by active order count (ascending) - assign to least busy waiter
+  candidates.sort((a, b) => a._count.ordersAsWaiter - b._count.ordersAsWaiter);
+  return candidates[0].id;
+}
+
 // ─── Restaurant Resolution ───────────────────────────────
 
 export async function resolveActiveRestaurant(): Promise<{ id: string } | null> {
@@ -149,9 +207,21 @@ export async function createPublicOrder(input: CreateOrderInput): Promise<{
     return { error: settings?.publicPauseOrderingReason || 'Online ordering is not available.' };
   }
 
-  // 2. Validate opening hours
-  const availability = await checkOpeningHours(restaurant.id, input.orderType);
-  if (!availability.isOpen) return { error: availability.message };
+  // 2. Validate table for DINE_IN
+  let tableId: string | null = null;
+  if (input.orderType === 'DINE_IN') {
+    if (input.tableId) {
+      const table = await prisma.restaurantTable.findFirst({
+        where: { id: input.tableId, restaurantId: restaurant.id, isActive: true },
+      });
+      if (!table) return { error: 'Table not found or unavailable.' };
+      tableId = table.id;
+    }
+  } else {
+    // Validate opening hours for pickup/delivery
+    const availability = await checkOpeningHours(restaurant.id, input.orderType);
+    if (!availability.isOpen) return { error: availability.message };
+  }
 
   // 3. Validate items
   if (!input.items.length) return { error: 'Cart is empty.' };
@@ -232,14 +302,16 @@ export async function createPublicOrder(input: CreateOrderInput): Promise<{
   const trackingToken = generateAccessToken();
   const tokenHash = hashToken(trackingToken);
   const orderNumber = await getNextSequence(restaurant.id);
+  const isDineIn = input.orderType === 'DINE_IN';
 
   const order = await prisma.order.create({
     data: {
       restaurantId: restaurant.id,
       orderNumber,
-      orderType: input.orderType as any,
-      status: input.orderType === 'PICKUP' ? 'DRAFT' : 'DRAFT',
+      orderType: isDineIn ? 'DINE_IN' : input.orderType as any,
+      status: isDineIn ? 'SUBMITTED' : 'DRAFT',
       paymentStatus: 'UNPAID',
+      tableId,
       customerName: input.customerName,
       customerPhone: input.phone,
       customerEmailSnapshot: input.email || null,
@@ -253,16 +325,17 @@ export async function createPublicOrder(input: CreateOrderInput): Promise<{
       amountDue: total,
       totalBeforeDiscount: total,
       createdById: await getSystemUserId(restaurant.id),
-      waiterId: await getSystemUserId(restaurant.id),
+      waiterId: isDineIn ? await autoAssignWaiter(restaurant.id, tableId) : await getSystemUserId(restaurant.id),
       // Public fields
       publicReference,
       publicAccessTokenHash: tokenHash,
-      publicOrderStatus: 'AWAITING_CONFIRMATION',
-      publicOrderSource: 'WEBSITE',
+      publicOrderStatus: isDineIn ? 'RECEIVED' : 'AWAITING_CONFIRMATION',
+      publicOrderSource: isDineIn ? 'QR_TABLE' : 'WEBSITE',
+      submittedAt: isDineIn ? new Date() : undefined,
       deliveryFee,
       deliveryInstructions: input.deliveryInstructions || null,
       publicOrderNotes: input.notes || null,
-      publicPaymentChoice: input.orderType === 'DELIVERY' ? 'PAY_ON_DELIVERY' : 'PAY_ON_PICKUP',
+      publicPaymentChoice: isDineIn ? 'PAY_AT_CASHIER' : input.orderType === 'DELIVERY' ? 'PAY_ON_DELIVERY' : 'PAY_ON_PICKUP',
       // Delivery fields
       deliveryAddressId: null,
       deliveryAddressSnapshot: input.deliveryAddress ? JSON.parse(JSON.stringify(input.deliveryAddress)) : null,
@@ -280,9 +353,42 @@ export async function createPublicOrder(input: CreateOrderInput): Promise<{
     });
   }
 
-  // 8. Handle auto-accept
-  if (settings.publicOrderAcceptanceMode === 'AUTOMATIC' || settings.publicOrderAutoAccept) {
-    // Auto-accept: submit through existing order service
+  // 8. Handle auto-accept (for pickup/delivery) or submit for dine-in
+  if (isDineIn) {
+    // Dine-in orders are immediately submitted; update order item statuses too
+    await prisma.orderItem.updateMany({
+      where: { orderId: order.id },
+      data: { status: 'SENT' },
+    });
+
+    // Create kitchen tickets
+    const stations = [...new Set(orderItemsData.filter((i) => i.kitchenStationId).map((i) => i.kitchenStationId))] as string[];
+    for (const stationId of stations) {
+      const ticketItems = orderItemsData.filter((i) => i.kitchenStationId === stationId);
+      const ticketNumber = `KT-${orderNumber}-${stationId.slice(0, 8)}`;
+      const ticket = await prisma.kitchenTicket.create({
+        data: {
+          restaurantId: restaurant.id,
+          orderId: order.id,
+          kitchenStationId: stationId,
+          ticketNumber,
+          status: 'NEW',
+        },
+      });
+      for (const item of ticketItems) {
+        const orderItem = await prisma.orderItem.findFirst({
+          where: { orderId: order.id, menuItemId: item.menuItemId, menuItemCodeSnapshot: item.menuItemCodeSnapshot },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (orderItem) {
+          await prisma.kitchenTicketItem.create({
+            data: { kitchenTicketId: ticket.id, orderItemId: orderItem.id },
+          });
+        }
+      }
+    }
+  } else if (settings.publicOrderAcceptanceMode === 'AUTOMATIC' || settings.publicOrderAutoAccept) {
+    // Auto-accept for pickup/delivery
     await prisma.order.update({
       where: { id: order.id },
       data: {
@@ -293,6 +399,35 @@ export async function createPublicOrder(input: CreateOrderInput): Promise<{
       },
     });
   }
+
+  // 9. Emit socket notification for new order
+  try {
+    const orderWithItems = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        items: {
+          select: { id: true, menuItemNameSnapshot: true, quantity: true, status: true },
+        },
+        table: { select: { name: true, code: true } },
+      },
+    });
+    if (orderWithItems) {
+      emitToRestaurant(restaurant.id, 'order:new', {
+        id: orderWithItems.id,
+        orderNumber: orderWithItems.orderNumber,
+        publicReference: orderWithItems.publicReference,
+        orderType: orderWithItems.orderType,
+        status: orderWithItems.status,
+        publicOrderStatus: orderWithItems.publicOrderStatus,
+        customerName: orderWithItems.customerName,
+        tableName: orderWithItems.table?.name || null,
+        tableCode: orderWithItems.table?.code || null,
+        items: orderWithItems.items,
+        isPublicOrder: true,
+        source: isDineIn ? 'QR_TABLE' : 'WEBSITE',
+      });
+    }
+  } catch { /* non-critical */ }
 
   return { publicReference, trackingToken };
 }

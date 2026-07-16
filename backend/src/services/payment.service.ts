@@ -166,6 +166,10 @@ interface RecordPaymentInput {
   restaurantId: string;
   ipAddress?: string;
   userAgent?: string;
+  // Optional tip that will be auto-recorded after payment
+  tipAmount?: string;
+  tipMethod?: string;
+  tipRecipientId?: string;
 }
 
 export async function recordPayment(
@@ -317,6 +321,51 @@ export async function recordPayment(
     }
   }
 
+  // Auto-record tip if tip amount provided
+  let recordedTip = null;
+  if (input.tipAmount && parseFloat(input.tipAmount) > 0) {
+    try {
+      const { recordTip } = await import('./tip.service');
+      const { emitTipRecorded } = await import('../sockets');
+      const { io } = await import('../server');
+      recordedTip = await recordTip({
+        orderId,
+        amount: input.tipAmount,
+        paymentMethod: input.tipMethod || input.method,
+        paymentId: payment.id,
+        directRecipientUserId: input.tipRecipientId || order.waiterId,
+        recordedById: input.userId,
+        restaurantId: input.restaurantId,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+      });
+      emitTipRecorded(io, input.restaurantId, input.userId, { tip: recordedTip, orderNumber: order.orderNumber });
+    } catch (err) {
+      console.error('Failed to auto-record tip:', err);
+    }
+  }
+
+  // Create notification for order's waiter about payment received
+  try {
+    const { createNotification } = await import('./notification.service');
+    const { emitNewNotification } = await import('../sockets');
+    const { io } = await import('../server');
+
+    if (order.waiterId) {
+      const notif = await createNotification({
+        restaurantId: input.restaurantId,
+        userId: order.waiterId,
+        type: 'PAYMENT_RECEIVED',
+        title: `Payment Received — Order #${order.orderNumber}`,
+        message: `${input.method} payment of ${amount.toFixed(2)} received`,
+        orderId,
+        entityType: 'order',
+        entityId: orderId,
+      });
+      emitNewNotification(io, input.restaurantId, order.waiterId, { notification: notif });
+    }
+  } catch (err) { console.error('Failed to create payment notification:', err); }
+
   // Audit
   await createAuditLog({
     restaurantId: input.restaurantId,
@@ -324,7 +373,7 @@ export async function recordPayment(
     action: 'Payment created',
     entityType: 'Payment',
     entityId: payment.id,
-    description: `${input.method} payment of ${amount.toFixed(2)} recorded for order ${order.orderNumber}`,
+    description: `${input.method} payment of ${amount.toFixed(2)} recorded for order ${order.orderNumber}${recordedTip ? ` with tip ${recordedTip.tipNumber}` : ''}`,
     metadata: {
       paymentNumber: payment.paymentNumber,
       orderNumber: order.orderNumber,
@@ -332,6 +381,8 @@ export async function recordPayment(
       amount: amount.toFixed(2),
       changeAmount: changeAmount.toFixed(2),
       paymentStatus: updatedSummary.paymentStatus,
+      tipAmount: input.tipAmount || null,
+      tipNumber: recordedTip?.tipNumber || null,
     },
     ipAddress: input.ipAddress,
     userAgent: input.userAgent,

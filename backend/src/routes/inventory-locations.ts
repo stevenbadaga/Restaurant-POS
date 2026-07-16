@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { inventoryLocationService } from '../services';
 import { locationSchema, locationUpdateSchema } from '../services/inventory-location.service';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 router.use(requireAuth);
@@ -28,7 +28,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: location });
 }));
 
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = locationSchema.parse(req.body);
@@ -36,7 +36,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: location, message: 'Stock location created' });
 }));
 
-router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = locationUpdateSchema.parse(req.body);
@@ -46,7 +46,7 @@ router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: location, message: 'Stock location updated' });
 }));
 
-router.patch('/:id/status', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/status', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const { isActive } = req.body;
@@ -56,7 +56,7 @@ router.patch('/:id/status', asyncHandler(async (req: Request, res: Response) => 
   return res.json({ success: true, data: location });
 }));
 
-router.post('/:id/set-default', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/set-default', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const location = await inventoryLocationService.setDefaultLocation(restaurantId, req.params.id, userId);

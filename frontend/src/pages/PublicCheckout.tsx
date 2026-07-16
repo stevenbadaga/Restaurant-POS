@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ShoppingCart, Store, Truck, ChevronLeft, Clock, Shield, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Store, Truck, ChevronLeft, Clock, Shield, AlertTriangle, Coffee } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import api from '@/services/api';
 
@@ -22,9 +22,9 @@ interface QuoteResult {
 export default function PublicCheckout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { items, estimatedSubtotal, clearCart, restaurantId } = useCart();
+  const { items, estimatedSubtotal, clearCart, restaurantId, tableId, tableName, isDineIn } = useCart();
 
-  const orderType = searchParams.get('type') || 'pickup';
+  const orderType = searchParams.get('type') || (isDineIn ? 'dinein' : 'pickup');
 
   // Checkout form state
   const [customerName, setCustomerName] = useState('');
@@ -55,6 +55,7 @@ export default function PublicCheckout() {
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
+  const isDineInCheckout = orderType === 'dinein' || isDineIn;
   const isDelivery = orderType === 'delivery';
 
   // Suggested pickup times
@@ -99,11 +100,12 @@ export default function PublicCheckout() {
     ? Number(selectedZone.minimumOrderAmount)
     : options ? Number(options.publicMinimumOrderAmount) : 0;
 
-  const meetsMinimum = estimatedSubtotal >= minimumOrder;
+  const meetsMinimum = estimatedSubtotal >= minimumOrder || isDineInCheckout;
 
   // Validate form
   const isFormValid = useMemo(() => {
     if (items.length === 0) return false;
+    if (isDineInCheckout) return true; // Dine-in requires minimal info
     if (!customerName.trim()) return false;
     if (!phone.trim()) return false;
     if (isDelivery) {
@@ -112,19 +114,19 @@ export default function PublicCheckout() {
       if (!city.trim()) return false;
     }
     return true;
-  }, [items.length, customerName, phone, isDelivery, selectedZoneId, addressLine1, city]);
+  }, [items.length, customerName, phone, isDelivery, isDineInCheckout, selectedZoneId, addressLine1, city]);
 
   async function handleSubmit() {
-    if (!isFormValid || !meetsMinimum) return;
+    if (!isFormValid || (!meetsMinimum && !isDineInCheckout)) return;
 
     setLoading(true);
     setError(null);
 
     try {
       const payload: Record<string, any> = {
-        orderType: isDelivery ? 'DELIVERY' : 'PICKUP',
-        customerName: customerName.trim(),
-        phone: phone.trim(),
+        orderType: isDineInCheckout ? 'DINE_IN' : isDelivery ? 'DELIVERY' : 'PICKUP',
+        customerName: isDineInCheckout ? (customerName.trim() || 'Guest') : customerName.trim(),
+        phone: isDineInCheckout ? (phone.trim() || '0000000000') : phone.trim(),
         email: email.trim() || undefined,
         items: items.map((item) => ({
           menuItemId: item.menuItemId,
@@ -133,6 +135,7 @@ export default function PublicCheckout() {
         })),
         notes: orderNotes.trim() || undefined,
         promotionCode: promotionCode.trim() || undefined,
+        tableId: isDineInCheckout ? tableId : undefined,
       };
 
       if (isDelivery) {
@@ -144,7 +147,7 @@ export default function PublicCheckout() {
           city: city.trim(),
         };
         payload.deliveryInstructions = deliveryInstructions.trim() || undefined;
-      } else {
+      } else if (!isDineInCheckout) {
         payload.requestedPickupTime = pickupTime || undefined;
       }
 
@@ -153,7 +156,7 @@ export default function PublicCheckout() {
 
       clearCart();
       navigate(`/order/confirmation/${order.publicReference}`, {
-        state: { trackingToken: order.trackingToken },
+        state: { trackingToken: order.trackingToken, isDineIn: isDineInCheckout },
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to place order. Please try again.');
@@ -235,9 +238,11 @@ export default function PublicCheckout() {
         <div className="lg:col-span-3 order-1 lg:order-2">
           <div className="flex items-center gap-3 mb-6">
             <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-              isDelivery ? 'bg-orange-50' : 'bg-amber-50'
+              isDineInCheckout ? 'bg-emerald-50' : isDelivery ? 'bg-orange-50' : 'bg-amber-50'
             }`}>
-              {isDelivery ? (
+              {isDineInCheckout ? (
+                <Coffee className="h-5 w-5 text-emerald-600" />
+              ) : isDelivery ? (
                 <Truck className="h-5 w-5 text-orange-600" />
               ) : (
                 <Store className="h-5 w-5 text-amber-600" />
@@ -245,9 +250,11 @@ export default function PublicCheckout() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
-                {isDelivery ? 'Delivery Checkout' : 'Pickup Checkout'}
+                {isDineInCheckout ? 'Dine-in Order' : isDelivery ? 'Delivery Checkout' : 'Pickup Checkout'}
               </h1>
-              <p className="text-sm text-gray-500">{restaurant?.name || 'Restaurant'}</p>
+              <p className="text-sm text-gray-500">
+                {isDineInCheckout && tableName ? `Ordering for ${tableName}` : restaurant?.name || 'Restaurant'}
+              </p>
             </div>
           </div>
 
@@ -258,7 +265,7 @@ export default function PublicCheckout() {
             </div>
           )}
 
-          {!meetsMinimum && (
+          {!meetsMinimum && !isDineInCheckout && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
               <p className="text-sm text-amber-700">
@@ -269,27 +276,27 @@ export default function PublicCheckout() {
           )}
 
           <div className="space-y-6">
-            {/* Customer Info */}
+            {/* Customer Info - simplified for dine-in */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Your Information</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">{isDineInCheckout ? 'Your Name (optional)' : 'Your Information'}</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{isDineInCheckout ? 'Name' : 'Name *'}</label>
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={isDineInCheckout ? 'Your name (for the waiter)' : 'Your name'}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{isDineInCheckout ? 'Phone (optional)' : 'Phone *'}</label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Phone number"
+                    placeholder={isDineInCheckout ? 'Phone number' : 'Phone number'}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none"
                   />
                 </div>
@@ -395,7 +402,7 @@ export default function PublicCheckout() {
             )}
 
             {/* Pickup Time */}
-            {!isDelivery && (
+            {!isDelivery && !isDineInCheckout && (
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900 mb-2">Pickup Time</h3>
                 <p className="text-sm text-gray-500 mb-4 flex items-center gap-1">
@@ -437,31 +444,33 @@ export default function PublicCheckout() {
               <textarea
                 value={orderNotes}
                 onChange={(e) => setOrderNotes(e.target.value)}
-                placeholder="Any special requests for the restaurant?"
+                placeholder={isDineInCheckout ? 'Any special requests for the kitchen?' : 'Any special requests for the restaurant?'}
                 rows={3}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none resize-none"
               />
             </div>
 
             {/* Promotion Code */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">
-                Promotion Code
-                <span className="text-gray-400 font-normal ml-1">(optional)</span>
-              </h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={promotionCode}
-                  onChange={(e) => setPromotionCode(e.target.value)}
-                  placeholder="Enter code"
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none"
-                />
-                <button className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm">
-                  Apply
-                </button>
+            {!isDineInCheckout && (
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">
+                  Promotion Code
+                  <span className="text-gray-400 font-normal ml-1">(optional)</span>
+                </h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promotionCode}
+                    onChange={(e) => setPromotionCode(e.target.value)}
+                    placeholder="Enter code"
+                    className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none"
+                  />
+                  <button className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm">
+                    Apply
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Payment Selection */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -469,7 +478,10 @@ export default function PublicCheckout() {
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600 flex items-center gap-2">
                   <Shield className="h-4 w-4 text-gray-400" />
-                  Pay on {isDelivery ? 'delivery' : 'pickup'} when you arrive.
+                  {isDineInCheckout
+                    ? 'Pay at the cashier when you are ready to leave.'
+                    : `Pay on ${isDelivery ? 'delivery' : 'pickup'} when you arrive.`
+                  }
                 </p>
               </div>
             </div>
@@ -477,8 +489,12 @@ export default function PublicCheckout() {
             {/* Submit */}
             <button
               onClick={handleSubmit}
-              disabled={!isFormValid || !meetsMinimum || loading}
-              className="w-full py-3.5 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25"
+              disabled={!isFormValid || (!meetsMinimum && !isDineInCheckout) || loading}
+              className={`w-full py-3.5 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${
+                isDineInCheckout
+                  ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25'
+                  : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/25'
+              }`}
             >
               {loading ? (
                 <>
@@ -488,7 +504,7 @@ export default function PublicCheckout() {
               ) : (
                 <>
                   <ShoppingCart className="h-5 w-5" />
-                  Place Order
+                  {isDineInCheckout ? 'Send to Kitchen' : 'Place Order'}
                 </>
               )}
             </button>

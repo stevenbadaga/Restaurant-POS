@@ -5,6 +5,7 @@ import {
   Login,
   Dashboard,
   Tables,
+  Tips,
   Orders,
   NewOrder,
   Kitchen,
@@ -22,6 +23,8 @@ import {
   Handovers,
   NewHandover,
   SetupChecklist,
+  Customers,
+  Reservations,
   PublicHome,
   PublicMenu,
   PublicOrder,
@@ -36,6 +39,7 @@ import {
   PublicReservationConfirmation,
   QrCodes,
   QrMenu,
+  Notifications,
   NotFound,
 } from '@/pages';
 
@@ -188,6 +192,23 @@ export const router = createBrowserRouter([
         path: '/settings/receipts',
         element: <Settings />,
       },
+      // Customers & Reservations
+      {
+        path: '/customers',
+        element: <Customers />,
+      },
+      {
+        path: '/customers/:id',
+        element: <Customers />,
+      },
+      {
+        path: '/reservations',
+        element: <Reservations />,
+      },
+      {
+        path: '/reservations/:id',
+        element: <Reservations />,
+      },
       // Phase 7: Shifts, Attendance & Cash
       {
         path: '/my-shift',
@@ -236,6 +257,16 @@ export const router = createBrowserRouter([
       {
         path: '/handovers/:id',
         element: <Handovers />,
+      },
+      // Tips & Pooling
+      {
+        path: '/tips',
+        element: <Tips />,
+      },
+      // Notifications
+      {
+        path: '/notifications',
+        element: <Notifications />,
       },
       // Other pages
       {

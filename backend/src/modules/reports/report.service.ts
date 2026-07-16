@@ -55,6 +55,7 @@ export async function getDashboardData(
     now.toLocaleDateString('en-CA', { timeZone: timezone }) + 'T' + businessDayStartTime + ':00.000'
   );
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const todayDateStr = now.toLocaleDateString('en-CA', { timeZone: timezone });
 
   const isAdmin = userRoles.includes('ADMIN');
   const isManager = userRoles.includes('MANAGER');
@@ -68,27 +69,28 @@ export async function getDashboardData(
   const todayFilter = { gte: todayStart, lt: todayEnd };
 
   if (isWaiter && !isFullAccess) {
-    return getWaiterDashboard(restaurantId, userId, todayFilter);
+    return getWaiterDashboard(restaurantId, userId, todayFilter, todayDateStr);
   }
   if (isCashier && !isFullAccess) {
-    return getCashierDashboard(restaurantId, userId, todayFilter);
+    return getCashierDashboard(restaurantId, userId, todayFilter, todayDateStr);
   }
   if (isChef && !isFullAccess) {
-    return getChefDashboard(restaurantId, todayFilter);
+    return getChefDashboard(restaurantId, userId, todayFilter, todayDateStr);
   }
   if (isStockKeeper && !isFullAccess) {
-    return getStockKeeperDashboard(restaurantId, todayFilter);
+    return getStockKeeperDashboard(restaurantId, userId, todayFilter, todayDateStr);
   }
 
   // Full dashboard for ADMIN/MANAGER
-  return getFullDashboard(restaurantId, todayFilter, todayStart, todayEnd);
+  return getFullDashboard(restaurantId, todayFilter, todayStart, todayEnd, todayDateStr);
 }
 
 async function getFullDashboard(
   restaurantId: string,
   todayFilter: any,
   todayStart: Date,
-  todayEnd: Date
+  todayEnd: Date,
+  todayDateStr: string
 ): Promise<any> {
   const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
   const yesterdayEnd = new Date(todayStart);
@@ -107,6 +109,10 @@ async function getFullDashboard(
     waiterSales,
     cashierCollections,
     exceptions,
+    employeesScheduled,
+    employeesClockedIn,
+    openSessions,
+    pendingApprovals,
   ] = await Promise.all([
     // Today's payment data
     prisma.payment.findMany({
@@ -198,6 +204,27 @@ async function getFullDashboard(
       orderBy: { createdAt: 'desc' },
       take: 5,
     }) as any,
+    // Employees scheduled today (distinct assignments)
+    prisma.shiftAssignment.count({
+      where: {
+        restaurantId,
+        workShift: { businessDate: todayDateStr, status: { in: ['SCHEDULED', 'OPEN', 'CLOSING'] } },
+        status: { notIn: ['CANCELLED', 'ABSENT'] },
+      },
+    }),
+    // Employees clocked in right now
+    prisma.shiftAssignment.count({
+      where: { restaurantId, status: 'CLOCKED_IN' },
+    }),
+    // Open cashier sessions
+    prisma.cashierSession.count({
+      where: { restaurantId, status: 'OPEN' },
+    }),
+    // Pending approvals (cashier sessions pending approval + shift handovers submitted)
+    Promise.all([
+      prisma.cashierSession.count({ where: { restaurantId, status: 'PENDING_APPROVAL' } }),
+      prisma.shiftHandover.count({ where: { restaurantId, status: 'SUBMITTED' } }),
+    ]).then(([sessionApprovals, handoverApprovals]) => sessionApprovals + handoverApprovals),
   ]);
 
   // Calculate payment totals
@@ -327,15 +354,20 @@ async function getFullDashboard(
         totalAmount: cc._sum.amount || '0',
       };
     }).slice(0, 10),
+    employeesScheduledToday: employeesScheduled,
+    employeesClockedIn,
+    openCashierSessions: openSessions,
+    pendingApprovals,
   };
 }
 
 async function getWaiterDashboard(
   restaurantId: string,
   userId: string,
-  todayFilter: any
+  todayFilter: any,
+  todayDateStr: string
 ): Promise<any> {
-  const [orders, payments] = await Promise.all([
+  const [orders, payments, myTipsResult, myAssignment] = await Promise.all([
     prisma.order.findMany({
       where: { restaurantId, waiterId: userId, status: { notIn: ['DRAFT', 'CANCELLED'] }, createdAt: todayFilter },
       select: { status: true, paymentStatus: true, totalAmount: true, amountPaid: true, amountDue: true },
@@ -350,6 +382,21 @@ async function getWaiterDashboard(
       },
       select: { amount: true },
     }),
+    // Tips recorded for this waiter today — match by direct recipient OR by order IDs the waiter handled
+    prisma.customerTip.findMany({
+      where: {
+        restaurantId,
+        directRecipientUserId: userId,
+        recordedAt: todayFilter,
+        status: { not: 'REVERSED' },
+      },
+      select: { amount: true },
+    }),
+    // My shift status for today
+    prisma.shiftAssignment.findFirst({
+      where: { userId, restaurantId, workShift: { businessDate: todayDateStr }, status: { in: ['SCHEDULED', 'CLOCKED_IN', 'ON_BREAK'] } },
+      orderBy: { scheduledStartAt: 'desc' },
+    }),
   ]);
 
   const closed = orders.filter((o) => o.status === 'CLOSED');
@@ -357,6 +404,7 @@ async function getWaiterDashboard(
   const closedValue = closed.reduce((s, o) => s.plus(toDecimal(o.totalAmount)), new PrismaDecimal(0));
   const outstanding = orders.filter((o) => o.paymentStatus === 'UNPAID' || o.paymentStatus === 'PARTIALLY_PAID')
     .reduce((s, o) => s.plus(toDecimal(o.amountDue)), new PrismaDecimal(0));
+  const myTipTotal = myTipsResult.reduce((s, t) => s.plus(toDecimal(t.amount)), new PrismaDecimal(0));
 
   return {
     roleSpecific: true,
@@ -364,16 +412,30 @@ async function getWaiterDashboard(
     myClosedOrders: closed.length,
     myOrderValue: roundMoney(closedValue).toFixed(2),
     myPaidValue: roundMoney(paidValue).toFixed(2),
+    myTipTotal: roundMoney(myTipTotal).toFixed(2),
+    myTipCount: myTipsResult.length,
     myOutstandingBalance: roundMoney(outstanding).toFixed(2),
+    myShiftStatus: myAssignment ? {
+      clockedIn: myAssignment.status === 'CLOCKED_IN' || myAssignment.status === 'ON_BREAK',
+      onBreak: myAssignment.status === 'ON_BREAK',
+      workedMinutes: myAssignment.workedMinutes || 0,
+      lateMinutes: myAssignment.lateMinutes || 0,
+    } : {
+      clockedIn: false,
+      onBreak: false,
+      workedMinutes: 0,
+      lateMinutes: 0,
+    },
   };
 }
 
 async function getCashierDashboard(
   restaurantId: string,
   userId: string,
-  todayFilter: any
+  todayFilter: any,
+  todayDateStr: string
 ): Promise<any> {
-  const [payments, receipts, queue] = await Promise.all([
+  const [payments, receipts, queue, myAssignment] = await Promise.all([
     prisma.payment.findMany({
       where: { restaurantId, receivedById: userId, completedAt: todayFilter, status: 'COMPLETED' },
       select: { transactionType: true, amount: true, method: true },
@@ -383,6 +445,11 @@ async function getCashierDashboard(
     }),
     prisma.order.count({
       where: { restaurantId, status: { notIn: ['DRAFT', 'CANCELLED'] }, paymentStatus: { in: ['UNPAID', 'PARTIALLY_PAID'] } },
+    }),
+    // My shift status for today
+    prisma.shiftAssignment.findFirst({
+      where: { userId, restaurantId, workShift: { businessDate: todayDateStr }, status: { in: ['SCHEDULED', 'CLOCKED_IN', 'ON_BREAK'] } },
+      orderBy: { scheduledStartAt: 'desc' },
     }),
   ]);
 
@@ -409,14 +476,27 @@ async function getCashierDashboard(
     cardCollected: roundMoney(card).toFixed(2),
     receiptsIssued: receipts,
     ordersAwaitingPayment: queue,
+    myShiftStatus: myAssignment ? {
+      clockedIn: myAssignment.status === 'CLOCKED_IN' || myAssignment.status === 'ON_BREAK',
+      onBreak: myAssignment.status === 'ON_BREAK',
+      workedMinutes: myAssignment.workedMinutes || 0,
+      lateMinutes: myAssignment.lateMinutes || 0,
+    } : {
+      clockedIn: false,
+      onBreak: false,
+      workedMinutes: 0,
+      lateMinutes: 0,
+    },
   };
 }
 
 async function getChefDashboard(
   restaurantId: string,
-  todayFilter: any
+  userId: string,
+  todayFilter: any,
+  todayDateStr: string
 ): Promise<any> {
-  const [orders, items] = await Promise.all([
+  const [orders, items, myAssignment] = await Promise.all([
     prisma.order.findMany({
       where: { restaurantId, createdAt: todayFilter, status: { notIn: ['DRAFT', 'CANCELLED'] } },
       select: { status: true, items: { where: { status: { not: 'CANCELLED' } }, select: { status: true } } },
@@ -424,6 +504,11 @@ async function getChefDashboard(
     prisma.orderItem.findMany({
       where: { order: { restaurantId, createdAt: todayFilter }, status: { not: 'CANCELLED' } },
       select: { status: true },
+    }),
+    // My shift status for today
+    prisma.shiftAssignment.findFirst({
+      where: { userId, restaurantId, workShift: { businessDate: todayDateStr }, status: { in: ['SCHEDULED', 'CLOCKED_IN', 'ON_BREAK'] } },
+      orderBy: { scheduledStartAt: 'desc' },
     }),
   ]);
 
@@ -442,14 +527,27 @@ async function getChefDashboard(
     completedTickets: completed,
     itemsPrepared,
     totalTickets: orders.length,
+    myShiftStatus: myAssignment ? {
+      clockedIn: myAssignment.status === 'CLOCKED_IN' || myAssignment.status === 'ON_BREAK',
+      onBreak: myAssignment.status === 'ON_BREAK',
+      workedMinutes: myAssignment.workedMinutes || 0,
+      lateMinutes: myAssignment.lateMinutes || 0,
+    } : {
+      clockedIn: false,
+      onBreak: false,
+      workedMinutes: 0,
+      lateMinutes: 0,
+    },
   };
 }
 
 async function getStockKeeperDashboard(
   restaurantId: string,
-  todayFilter: any
+  userId: string,
+  todayFilter: any,
+  todayDateStr: string
 ): Promise<any> {
-  const [alerts, movements, balances] = await Promise.all([
+  const [alerts, movements, balances, myAssignment] = await Promise.all([
     prisma.inventoryAlert.findMany({
       where: { restaurantId, isResolved: false },
       select: { alertType: true },
@@ -463,6 +561,11 @@ async function getStockKeeperDashboard(
       include: {
         inventoryItem: { select: { name: true, reorderLevel: true, baseUnit: true } },
       },
+    }),
+    // My shift status for today
+    prisma.shiftAssignment.findFirst({
+      where: { userId, restaurantId, workShift: { businessDate: todayDateStr }, status: { in: ['SCHEDULED', 'CLOCKED_IN', 'ON_BREAK'] } },
+      orderBy: { scheduledStartAt: 'desc' },
     }),
   ]);
 
@@ -487,6 +590,17 @@ async function getStockKeeperDashboard(
     stockConsumedToday: roundMoney(consumed).toFixed(2),
     wastageToday: roundMoney(wastage).toFixed(2),
     totalInventoryItems: balances.length,
+    myShiftStatus: myAssignment ? {
+      clockedIn: myAssignment.status === 'CLOCKED_IN' || myAssignment.status === 'ON_BREAK',
+      onBreak: myAssignment.status === 'ON_BREAK',
+      workedMinutes: myAssignment.workedMinutes || 0,
+      lateMinutes: myAssignment.lateMinutes || 0,
+    } : {
+      clockedIn: false,
+      onBreak: false,
+      workedMinutes: 0,
+      lateMinutes: 0,
+    },
   };
 }
 

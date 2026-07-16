@@ -4,6 +4,8 @@ import { prisma } from '../database';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAuditLog } from '../services/audit.service';
 import { BadRequestError, NotFoundError } from '../types';
+import { emitTableWaiterAssigned, emitTableWaiterUnassigned } from '../sockets';
+import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 router.use(requireAuth);
@@ -26,6 +28,8 @@ const updateSchema = z.object({
   shape: z.enum(['SQUARE', 'RECTANGLE', 'ROUND', 'OVAL']).optional(),
   notes: z.string().optional(),
   displayOrder: z.number().int().optional(),
+  positionX: z.number().int().optional(),
+  positionY: z.number().int().optional(),
 });
 
 const statusSchema = z.object({ isActive: z.boolean() });
@@ -55,7 +59,10 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     const [tables, total] = await Promise.all([
       prisma.restaurantTable.findMany({
         where,
-        include: { diningArea: { select: { id: true, name: true } } },
+        include: {
+          diningArea: { select: { id: true, name: true } },
+          assignedWaiter: { select: { id: true, firstName: true, lastName: true } },
+        },
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
         orderBy: { [sort as string]: order as string },
@@ -267,6 +274,161 @@ router.delete('/:id', requireRole('ADMIN', 'MANAGER'), async (req: Request, res:
   } catch (error) {
     next(error);
   }
+});
+
+// ==========================================
+// ASSIGN WAITER TO TABLE (ADMIN / MANAGER)
+// ==========================================
+
+const assignTableWaiterSchema = z.object({
+  waiterId: z.string().uuid().nullable(),
+});
+
+router.patch('/:id/assign-waiter', requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = assignTableWaiterSchema.parse(req.body);
+    const restaurantId = req.user!.restaurantId;
+
+    const table = await prisma.restaurantTable.findFirst({
+      where: { id: req.params.id, restaurantId },
+    });
+    if (!table) throw new NotFoundError('Table not found');
+
+    let waiterName = '';
+    if (parsed.waiterId) {
+      const waiter = await prisma.user.findFirst({
+        where: {
+          id: parsed.waiterId,
+          restaurantId,
+          status: 'ACTIVE',
+          roles: {
+            some: { role: { name: { in: ['WAITER', 'ADMIN', 'MANAGER'] } } },
+          },
+        },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      if (!waiter) {
+        throw new BadRequestError('Invalid waiter. User must be ACTIVE with WAITER/ADMIN/MANAGER role.');
+      }
+      waiterName = `${waiter.firstName} ${waiter.lastName}`;
+    }
+
+    const previousWaiterId = table.assignedWaiterId;
+
+    const updated = await prisma.restaurantTable.update({
+      where: { id: req.params.id },
+      data: { assignedWaiterId: parsed.waiterId },
+      include: {
+        diningArea: { select: { id: true, name: true } },
+        assignedWaiter: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    await createAuditLog({
+      restaurantId,
+      userId: req.user!.id,
+      action: 'TABLE_WAITER_ASSIGNED',
+      entityType: 'RESTAURANT_TABLE',
+      entityId: table.id,
+      description: parsed.waiterId
+        ? `Waiter ${waiterName} assigned to table ${table.code}`
+        : `Waiter unassigned from table ${table.code}`,
+      metadata: { previousWaiterId, newWaiterId: parsed.waiterId },
+    });
+
+    // Emit socket events
+    try {
+      const io = getSocketIO();
+      emitTableWaiterAssigned(io, restaurantId, {
+        tableId: table.id,
+        tableCode: table.code,
+        waiterId: parsed.waiterId,
+        waiterName: parsed.waiterId ? waiterName : null,
+      });
+      if (previousWaiterId && previousWaiterId !== parsed.waiterId) {
+        emitTableWaiterUnassigned(io, restaurantId, {
+          tableId: table.id,
+          tableCode: table.code,
+          waiterId: previousWaiterId,
+        });
+      }
+    } catch { /* Socket may not be initialized */ }
+
+    res.json({ success: true, message: parsed.waiterId ? `Waiter ${waiterName} assigned` : 'Waiter unassigned', data: updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) next(new BadRequestError(error.errors[0].message));
+    else next(error);
+  }
+});
+
+// ==========================================
+// GET ALL TABLE-ASSIGNMENT DATA (waiters with their assigned tables + workload)
+// ==========================================
+
+router.get('/assignments/workload', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const restaurantId = req.user!.restaurantId;
+
+    // Get all ACTIVE waiters with role
+    const waiters = await prisma.user.findMany({
+      where: {
+        restaurantId,
+        status: 'ACTIVE',
+        roles: {
+          some: { role: { name: 'WAITER' } },
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeCode: true,
+        assignedTables: {
+          select: { id: true, name: true, code: true, status: true, capacity: true },
+        },
+        _count: {
+          select: {
+            ordersAsWaiter: {
+              where: { status: { in: ['SUBMITTED', 'IN_PREPARATION', 'PARTIALLY_READY', 'READY', 'SERVED'] } },
+            },
+          },
+        },
+      },
+      orderBy: [{ firstName: 'asc' }],
+    });
+
+    // Check clocked-in status for each waiter today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const clockedInUsers = await prisma.shiftAssignment.findMany({
+      where: {
+        restaurantId,
+        userId: { in: waiters.map(w => w.id) },
+        status: 'CLOCKED_IN',
+        clockedInAt: { gte: todayStart, lte: todayEnd },
+      },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+
+    const clockedInUserIds = new Set(clockedInUsers.map(c => c.userId));
+
+    res.json({
+      success: true,
+      data: waiters.map((w) => ({
+        id: w.id,
+        firstName: w.firstName,
+        lastName: w.lastName,
+        employeeCode: w.employeeCode,
+        assignedTables: w.assignedTables,
+        activeOrderCount: w._count.ordersAsWaiter,
+        isClockedIn: clockedInUserIds.has(w.id),
+      })),
+    });
+  } catch (error) { next(error); }
 });
 
 export default router;

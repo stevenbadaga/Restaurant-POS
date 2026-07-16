@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supplierService } from '../services';
 import { supplierSchema, supplierUpdateSchema } from '../services/supplier.service';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +30,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: supplier });
 }));
 
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+router.post('/', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = supplierSchema.parse(req.body);
@@ -38,7 +38,7 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: supplier, message: 'Supplier created' });
 }));
 
-router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const data = supplierUpdateSchema.parse(req.body);
@@ -48,7 +48,7 @@ router.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   return res.json({ success: true, data: supplier, message: 'Supplier updated' });
 }));
 
-router.patch('/:id/status', asyncHandler(async (req: Request, res: Response) => {
+router.patch('/:id/status', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
   const { isActive } = req.body;

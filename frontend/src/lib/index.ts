@@ -1,1 +1,1 @@
-export { cn, formatCurrency, formatDate } from './utils';
+export { cn, formatCurrency, formatDate, formatRelativeTime } from './utils';

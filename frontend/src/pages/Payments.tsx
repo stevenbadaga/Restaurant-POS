@@ -1,15 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   CreditCard,
-  DollarSign,
   Search,
   Filter,
   RefreshCw,
-  ChevronDown,
-  ChevronUp,
   Printer,
-  Download,
   RotateCcw,
   XCircle,
   Wallet,
@@ -17,11 +14,9 @@ import {
   Smartphone,
   Banknote,
   Ticket,
-  MoreHorizontal,
   AlertCircle,
   CheckCircle2,
   Clock,
-  ArrowRight,
   Plus,
   Minus,
 } from 'lucide-react';
@@ -47,10 +42,10 @@ import {
   cancelPaymentRequest,
   voidPayment,
   issueRefund,
-  closeOrder,
   getOrderPaymentSummary,
 } from '@/services/payments';
 import { getReceiptByOrder, getReceiptPdfUrl, reprintReceipt } from '@/services/receipts';
+import { connectSocket, disconnectSocket } from '@/services/socket';
 import { formatCurrency, formatDate } from '@/lib';
 
 const PAYMENT_METHODS = [
@@ -64,6 +59,7 @@ const PAYMENT_METHODS = [
 
 export default function Payments() {
   const navigate = useNavigate();
+  const { restaurant } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'queue';
 
@@ -92,9 +88,15 @@ export default function Payments() {
   const [orderSummary, setOrderSummary] = useState<any>(null);
   const [orderSummaryLoading, setOrderSummaryLoading] = useState(false);
 
+  const socketConnected = useRef(false);
+
   // Split payment state
   const [isSplit, setIsSplit] = useState(false);
   const [splitPayments, setSplitPayments] = useState<Array<{ method: string; amount: string; amountTendered?: string; referenceNumber?: string; providerName?: string; notes?: string }>>([]);
+
+  // Tip state
+  const [tipAmount, setTipAmount] = useState('');
+  const [tipMethod, setTipMethod] = useState('CASH');
 
   // Refund dialog state
   const [showRefundDialog, setShowRefundDialog] = useState(false);
@@ -146,6 +148,21 @@ export default function Payments() {
     fetchData();
   }, [fetchData]);
 
+  // Socket.IO real-time
+  const socketRef = useRef<any>(null);
+  useEffect(() => {
+    const socket = connectSocket(restaurant?.id || '');
+    socketRef.current = socket;
+    socket.on('connect', () => { socketConnected.current = true; });
+    socket.on('disconnect', () => { socketConnected.current = false; });
+    socket.on('order:payment-status-updated', () => fetchData());
+    socket.on('payment:recorded', () => fetchData());
+    socket.on('payment:voided', () => fetchData());
+    socket.on('order:closed', () => fetchData());
+    socket.on('receipt:issued', () => fetchData());
+    return () => { socket.disconnect(); };
+  }, []);
+
   const handleOpenPayment = async (orderId: string) => {
     setOrderSummaryLoading(true);
     setPaymentError(null);
@@ -156,6 +173,8 @@ export default function Payments() {
     setReferenceNumber('');
     setProviderName('');
     setPaymentNotes('');
+    setTipAmount('');
+    setTipMethod('CASH');
     setIsSplit(false);
     setSplitPayments([]);
     try {
@@ -197,6 +216,8 @@ export default function Payments() {
           providerName: providerName || undefined,
           notes: paymentNotes || undefined,
           idempotencyKey: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          tipAmount: tipAmount || undefined,
+          tipMethod: tipMethod || undefined,
         });
         setPaymentSuccess('Payment recorded successfully');
       }
@@ -517,6 +538,39 @@ export default function Payments() {
                           </select>
                         </div>
                       )}
+
+                      {/* Tip */}
+                      <div className="border-t border-[var(--color-border)] pt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-sm font-medium text-[var(--color-text-primary)]">Add a Tip</h3>
+                          <span className="text-xs text-[var(--color-text-muted)]">(optional)</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={tipAmount}
+                              onChange={(e) => setTipAmount(e.target.value)}
+                              placeholder="Tip amount"
+                              className="w-full px-4 py-2.5 rounded-lg border bg-[var(--color-input-bg)] border-[var(--color-input-border)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                            />
+                          </div>
+                          <select
+                            value={tipMethod}
+                            onChange={(e) => setTipMethod(e.target.value)}
+                            className="px-3 py-2.5 rounded-lg border bg-[var(--color-input-bg)] border-[var(--color-input-border)] text-sm"
+                          >
+                            {PAYMENT_METHODS.map((m) => (
+                              <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                          Tip will be attributed to the order's assigned waiter
+                        </p>
+                      </div>
 
                       {/* Notes */}
                       <div>

@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { prisma } from '../database';
 import { requireAuth, requireRole } from '../middleware/auth';
 import * as shiftService from '../services/shift.service';
+import * as notificationService from '../services/notification.service';
 import { BadRequestError, NotFoundError } from '../types';
+import { emitNewNotification } from '../sockets';
+import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 router.use(requireAuth);
@@ -188,6 +191,31 @@ router.post('/:assignmentId/correct', requireRole('ADMIN', 'MANAGER'), async (re
       req.ip,
       req.headers['user-agent']
     );
+    // Notify other managers about the correction
+    try {
+      const io = getSocketIO();
+      const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
+      const otherManagers = managerIds.filter(id => id !== req.user!.id);
+      if (otherManagers.length > 0) {
+        const assignment = await prisma.shiftAssignment.findUnique({
+          where: { id: req.params.assignmentId },
+          select: { user: { select: { firstName: true, lastName: true } } },
+        });
+        const notifs = await notificationService.createBulkNotification({
+          restaurantId: req.user!.restaurantId,
+          userIds: otherManagers,
+          type: 'APPROVAL_NEEDED',
+          title: `Attendance Corrected — ${assignment?.user?.firstName || ''} ${assignment?.user?.lastName || ''}`,
+          message: `${parsed.reason} by ${req.user!.firstName} ${req.user!.lastName}`,
+          entityType: 'attendance',
+          entityId: req.params.assignmentId,
+        });
+        for (const n of notifs) {
+          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
+        }
+      }
+    } catch (err) { console.error('Failed to notify managers about correction:', err); }
+
     res.json({ success: true, message: 'Attendance corrected', data: result });
   } catch (error) {
     if (error instanceof z.ZodError) next(new BadRequestError(error.errors[0].message));
