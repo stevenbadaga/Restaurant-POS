@@ -32,9 +32,8 @@ export const getBusinessHours = async () => {
 
 export const updateBusinessHours = async (periods: Array<{
   dayOfWeek: string;
-  openTime: string;
-  closeTime: string;
   isClosed: boolean;
+  periods?: { openTime: string; closeTime: string }[];
 }>) => {
   const response = await api.put('/settings/business-hours', periods);
   return response.data;

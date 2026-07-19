@@ -33,15 +33,15 @@ export function DashboardLayout() {
       />
 
       {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <TopNav
           onMenuClick={() => setSidebarOpen(true)}
           isCollapsed={sidebarCollapsed}
         />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl transition-all duration-300">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl transition-all duration-300 w-full">
             <Outlet />
           </div>
         </main>
