@@ -9,6 +9,7 @@ import tablesRouter from './tables';
 import menuCategoriesRouter from './menu-categories';
 import kitchenStationsRouter from './kitchen-stations';
 import menuItemsRouter from './menu-items';
+import menuImagesRouter from './menu-images';
 import inventoryLocationsRouter from './inventory-locations';
 import inventoryCategoriesRouter from './inventory-categories';
 import inventoryItemsRouter from './inventory-items';
@@ -42,6 +43,8 @@ import publicRouter from './public';
 import publicOrdersRouter from './public-orders';
 import qrRouter from './qr';
 import publicQrRouter from './public-qr';
+import approvalRequestsRouter from './approval-requests';
+import backupRouter from './backup';
 
 const router = Router();
 
@@ -58,6 +61,7 @@ router.use('/setup', setupReadinessRouter);
 router.use('/staff', staffRouter);
 
 // === Phase 2: Menu (specific routes BEFORE general /menu) ===
+router.use('/menu/items/images', menuImagesRouter);
 router.use('/menu/categories', menuCategoriesRouter);
 router.use('/menu/kitchen-stations', kitchenStationsRouter);
 router.use('/menu/items', menuItemsRouter);
@@ -74,6 +78,7 @@ router.use('/orders', ordersRouter);
 router.use('/orders', orderPaymentsRouter);
 router.use('/kitchen', kitchenRouter);
 router.use('/notifications', notificationsRouter);
+router.use('/approval-requests', approvalRequestsRouter);
 
 // === Phase 4: Inventory ===
 router.use('/inventory/locations', inventoryLocationsRouter);
@@ -102,8 +107,15 @@ router.use('/cash-registers', cashRegistersRouter);
 router.use('/cashier-sessions', cashierSessionsRouter);
 router.use('/handovers', handoversRouter);
 
-// Settings
+// Settings & Backup
 router.use('/settings', settingsRouter);
+router.use('/backup', backupRouter);
+
+// === Phase 10: Public website & online ordering ===
+// Must be mounted before authenticated root-level routers below.
+router.use('/public', publicRouter);
+router.use('/public', publicOrdersRouter);
+router.use('/public', publicQrRouter);
 
 // === Phase 8: Customers, Reservations, Loyalty, Promotions ===
 // Loyalty and discount routes must be mounted BEFORE customer/order routers
@@ -114,11 +126,6 @@ router.use('/customers', customersRouter);
 router.use('/reservations', reservationsRouter);
 router.use('/waiting-list', waitingListRouter);
 router.use('/promotions', promotionsRouter);
-
-// === Phase 10: Public website & online ordering ===
-router.use('/public', publicRouter);
-router.use('/public', publicOrdersRouter);
-router.use('/public', publicQrRouter);
 
 // === QR Code Management ===
 router.use('/tables', qrRouter);

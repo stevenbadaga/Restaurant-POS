@@ -1,0 +1,135 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      CLIENT_URL: ${CLIENT_URL:?CLIENT_URL is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      COOKIE_SECURE: "true"
+      TRUST_PROXY: "true"
+      BACKUP_DIRECTORY: /app/backups
+      PDF_TEMP_DIRECTORY: /app/temp
+      UPLOAD_DIRECTORY: /app/uploads
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_backups:/app/backups
+      - backend_temp:/app/temp
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/api/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ─────────────────────────────────────────
+  # Database Backup Scheduler
+  # ─────────────────────────────────────────
+  # Runs pg_dump on a cron schedule and rotates backups.
+  # Override BACKUP_CRON_SCHEDULE for custom timing.
+  # Activated with: docker compose --profile backup up -d
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    profiles:
+      - backup
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required for backup}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_CRON_SCHEDULE: ${BACKUP_CRON_SCHEDULE:-0 0 * * *}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - postgres_backups:/backups
+      - ./scripts/docker-backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: |
+      sh -c "
+        echo 'Backup scheduler starting...'
+        echo 'Schedule: ${BACKUP_CRON_SCHEDULE:-0 0 * * *}'
+        echo 'Retention: ${BACKUP_RETENTION_DAYS:-7} days'
+
+        if ! command -v crond >/dev/null 2>&1; then
+          apk add --no-cache dcron postgresql-client >/dev/null 2>&1
+        fi
+
+        echo '${BACKUP_CRON_SCHEDULE:-0 0 * * *} /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1' > /etc/crontabs/root
+
+        sleep 30 && /usr/local/bin/backup.sh &
+
+        echo 'Backup scheduler ready.'
+        crond -f -l 2
+      "
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  postgres_data:
+  postgres_backups:
+  backend_uploads:
+  backend_backups:
+  backend_temp:
