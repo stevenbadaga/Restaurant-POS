@@ -15,6 +15,7 @@ export { default as MyShift } from './MyShift';
 export { default as Shifts } from './Shifts';
 export { default as Attendance } from './Attendance';
 export { default as CashierSessions } from './CashierSessions';
+export { default as CashierSessionDetail } from './CashierSessionDetail';
 export { default as Handovers, NewHandover } from './Handovers';
 export { default as SetupChecklist } from './SetupChecklist';
 export { default as PublicHome } from './PublicHome';
@@ -32,7 +33,9 @@ export { default as PublicReservationConfirmation } from './PublicReservationCon
 export { default as Tips } from './Tips';
 export { default as Customers } from './Customers';
 export { default as Reservations } from './Reservations';
+export { default as WaitingList } from './WaitingList';
 export { default as QrCodes } from './QrCodes';
 export { default as QrMenu } from './QrMenu';
 export { default as Notifications } from './Notifications';
+export { default as Approvals } from './Approvals';
 export { default as NotFound } from './NotFound';

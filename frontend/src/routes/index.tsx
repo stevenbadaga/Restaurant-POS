@@ -20,11 +20,13 @@ import {
   Shifts,
   Attendance,
   CashierSessions,
+  CashierSessionDetail,
   Handovers,
   NewHandover,
   SetupChecklist,
   Customers,
   Reservations,
+  WaitingList,
   PublicHome,
   PublicMenu,
   PublicOrder,
@@ -40,6 +42,7 @@ import {
   QrCodes,
   QrMenu,
   Notifications,
+  Approvals,
   NotFound,
 } from '@/pages';
 
@@ -206,6 +209,10 @@ export const router = createBrowserRouter([
         element: <Reservations />,
       },
       {
+        path: '/waiting-list',
+        element: <WaitingList />,
+      },
+      {
         path: '/reservations/:id',
         element: <Reservations />,
       },
@@ -244,7 +251,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/cashier-sessions/:id',
-        element: <CashierSessions />,
+        element: <CashierSessionDetail />,
       },
       {
         path: '/handovers',
@@ -267,6 +274,10 @@ export const router = createBrowserRouter([
       {
         path: '/notifications',
         element: <Notifications />,
+      },
+      {
+        path: '/approvals',
+        element: <Approvals />,
       },
       // Other pages
       {
@@ -434,11 +445,11 @@ export const router = createBrowserRouter([
         element: <PublicHome />,
       },
       {
-        path: '/menu',
+        path: '/public-menu',
         element: <PublicMenu />,
       },
       {
-        path: '/menu/category/:categorySlug',
+        path: '/public-menu/category/:categorySlug',
         element: <PublicMenu />,
       },
       {

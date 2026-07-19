@@ -3,6 +3,16 @@ import { BadRequestError, NotFoundError, ForbiddenError } from '../types';
 import { createAuditLog } from './audit.service';
 import { generateSequenceNumber } from './sequence.service';
 import { toDecimal, roundMoney } from './calculation.service';
+import { getSocketIO } from '../sockets/emitter';
+import {
+  emitCashierSessionOpened,
+  emitCashierSessionUpdated,
+  emitCashierSessionClosing,
+  emitCashierSessionPendingApproval,
+  emitCashierSessionClosed,
+  emitCashDrawerMovementCreated,
+  emitCashVarianceDetected,
+} from '../sockets';
 
 // ==========================================
 // CASH REGISTERS
@@ -324,6 +334,18 @@ export async function openCashierSession(
     userAgent,
   });
 
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashierSessionOpened(io, restaurantId, {
+      id: session.id,
+      sessionNumber: session.sessionNumber,
+      cashRegisterName: register.name,
+      openingFloat: float.toFixed(2),
+      openedAt: session.openedAt,
+    });
+  } catch { /* socket emission should not block response */ }
+
   return session;
 }
 
@@ -451,6 +473,17 @@ export async function addCashIn(
     userAgent,
   });
 
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashDrawerMovementCreated(io, restaurantId, {
+      sessionId,
+      movementType: 'CASH_IN',
+      amount: amount.toFixed(2),
+      reason: input.reason,
+    });
+  } catch { /* socket emission should not block response */ }
+
   return movement;
 }
 
@@ -505,6 +538,17 @@ export async function addCashOut(
     ipAddress,
     userAgent,
   });
+
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashDrawerMovementCreated(io, restaurantId, {
+      sessionId,
+      movementType: 'CASH_OUT',
+      amount: amount.toFixed(2),
+      reason: input.reason,
+    });
+  } catch { /* socket emission should not block response */ }
 
   return movement;
 }
@@ -563,6 +607,17 @@ export async function addSafeDrop(
     userAgent,
   });
 
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashDrawerMovementCreated(io, restaurantId, {
+      sessionId,
+      movementType: 'SAFE_DROP',
+      amount: amount.toFixed(2),
+      reason: input.reason,
+    });
+  } catch { /* socket emission should not block response */ }
+
   return movement;
 }
 
@@ -616,6 +671,17 @@ export async function addAdjustment(
     ipAddress,
     userAgent,
   });
+
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashDrawerMovementCreated(io, restaurantId, {
+      sessionId,
+      movementType: input.movementType,
+      amount: amount.toFixed(2),
+      reason: input.reason,
+    });
+  } catch { /* socket emission should not block response */ }
 
   return movement;
 }
@@ -752,6 +818,17 @@ export async function beginClosingSession(
     userAgent,
   });
 
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashierSessionClosing(io, restaurantId, {
+      id: sessionId,
+      sessionNumber: session.sessionNumber,
+      expectedCash: expected.expectedCash,
+      closingStartedAt: new Date().toISOString(),
+    });
+  } catch { /* socket emission should not block response */ }
+
   return { session, expected };
 }
 
@@ -844,6 +921,34 @@ export async function recordClosingCount(
     },
   });
 
+  // Emit real-time events
+  try {
+    const io = getSocketIO();
+    if (newStatus === 'PENDING_APPROVAL') {
+      emitCashierSessionPendingApproval(io, restaurantId, {
+        id: sessionId,
+        sessionNumber: session.sessionNumber,
+        variance: variance.toFixed(2),
+        varianceStatus,
+      });
+      emitCashVarianceDetected(io, restaurantId, {
+        id: sessionId,
+        sessionNumber: session.sessionNumber,
+        expectedCash: expectedDec.toFixed(2),
+        countedCash: countedCash.toFixed(2),
+        variance: variance.toFixed(2),
+        varianceStatus,
+      });
+    }
+    emitCashierSessionUpdated(io, restaurantId, {
+      id: sessionId,
+      sessionNumber: session.sessionNumber,
+      status: newStatus,
+      variance: variance.toFixed(2),
+      varianceStatus,
+    });
+  } catch { /* socket emission should not block response */ }
+
   await createAuditLog({
     restaurantId,
     userId,
@@ -912,6 +1017,17 @@ export async function approveSession(
     ipAddress,
     userAgent,
   });
+
+  // Emit real-time events
+  try {
+    const io = getSocketIO();
+    emitCashierSessionUpdated(io, restaurantId, {
+      id: sessionId,
+      sessionNumber: session.sessionNumber,
+      status: 'APPROVED',
+      varianceStatus: 'APPROVED',
+    });
+  } catch { /* socket emission should not block response */ }
 
   return updated;
 }
@@ -1001,6 +1117,18 @@ export async function closeSession(
     ipAddress,
     userAgent,
   });
+
+  // Emit real-time event
+  try {
+    const io = getSocketIO();
+    emitCashierSessionClosed(io, restaurantId, {
+      id: sessionId,
+      sessionNumber: session.sessionNumber,
+      closedAt: new Date().toISOString(),
+      variance: session.varianceAmount,
+      varianceStatus: session.varianceStatus,
+    });
+  } catch { /* socket emission should not block response */ }
 
   return updated;
 }
