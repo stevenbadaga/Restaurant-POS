@@ -144,9 +144,9 @@ export default function Staff() {
         title="Staff"
         description="Manage restaurant staff, roles, and account status"
         actions={
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={loadStaff} leftIcon={<RefreshCw className="h-4 w-4" />}>Refresh</Button>
-            {canManage && <Button onClick={openCreate} leftIcon={<Plus className="h-4 w-4" />}>Add Staff</Button>}
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="secondary" size="sm" onClick={loadStaff} leftIcon={<RefreshCw className="h-4 w-4" />}>Refresh</Button>
+            {canManage && <Button size="sm" onClick={openCreate} leftIcon={<Plus className="h-4 w-4" />}>Add Staff</Button>}
           </div>
         }
       />
@@ -167,7 +167,7 @@ export default function Staff() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <Field label="First name"><input className="input-field" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></Field>
                 <Field label="Last name"><input className="input-field" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></Field>
                 <Field label="Employee code"><input className="input-field uppercase" value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value.toUpperCase() })} /></Field>

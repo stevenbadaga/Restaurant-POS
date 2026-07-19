@@ -36,6 +36,7 @@ interface ReportDefinition {
 const REPORTS: ReportDefinition[] = [
   { id: 'sales-overview', title: 'Sales Overview', project: 'Restaurant Operations', parentUpi: 'N/A', type: 'Sales', generatedBy: 'System', score: 96, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/sales', exportType: 'sales_overview', permission: ['ADMIN', 'MANAGER'] },
   { id: 'sales-by-waiter', title: 'Sales by Waiter', project: 'Restaurant Operations', parentUpi: 'N/A', type: 'Sales', generatedBy: 'System', score: 92, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/sales-by-waiter', exportType: 'sales_waiters', permission: ['ADMIN', 'MANAGER'] },
+  { id: 'waiter-assignments', title: 'Waiter Assignment Report', project: 'Dining Room', parentUpi: 'N/A', type: 'Operations', generatedBy: 'System', score: 90, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/waiter-assignments', exportType: 'waiter_assignments', permission: ['ADMIN', 'MANAGER'] },
   { id: 'sales-by-item', title: 'Sales by Item', project: 'Menu Analytics', parentUpi: 'N/A', type: 'Sales', generatedBy: 'System', score: 90, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/sales-by-item', exportType: 'sales_items', permission: ['ADMIN', 'MANAGER'] },
   { id: 'sales-by-category', title: 'Sales by Category', project: 'Menu Analytics', parentUpi: 'N/A', type: 'Sales', generatedBy: 'System', score: 88, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/sales-by-category', exportType: 'sales_items', permission: ['ADMIN', 'MANAGER'] },
   { id: 'payment-summary', title: 'Payment Summary', project: 'Payments', parentUpi: 'N/A', type: 'Payments', generatedBy: 'System', score: 94, recommendation: 'READY', generatedAt: 'On demand', path: '/reports/payments', exportType: 'payment_methods', permission: ['ADMIN', 'MANAGER'] },
@@ -175,22 +176,22 @@ export default function Reports() {
 
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)]">
         <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <h2 className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">Report Generator</h2>
               <p className="text-xs text-[var(--color-text-muted)]">Choose a report row, then view or download it.</p>
             </div>
-            <span className="whitespace-nowrap rounded-full bg-emerald-950 px-3 py-1 text-xs font-semibold text-white dark:bg-emerald-700">
+            <span className="whitespace-nowrap rounded-full bg-emerald-950 px-3 py-1 text-xs font-semibold text-white dark:bg-emerald-700 flex-shrink-0">
               {visibleReports.length} available
             </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
             {typeFilters.map((type) => (
               <button
                 key={type}
                 onClick={() => setActiveType(type)}
                 className={cn(
-                  'whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition',
+                  'whitespace-nowrap rounded-full border px-2.5 py-1.5 text-xs font-semibold transition flex-shrink-0',
                   activeType === type
                     ? 'border-yellow-500 bg-yellow-100 text-emerald-950 dark:bg-yellow-500/20 dark:text-yellow-100'
                     : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-yellow-500 hover:text-emerald-800 dark:hover:text-yellow-100'

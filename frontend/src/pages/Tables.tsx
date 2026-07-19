@@ -340,19 +340,19 @@ export default function Tables() {
         title="Tables"
         description={viewMode === 'list' ? 'Manage restaurant tables and seating' : 'Floor plan view'}
         actions={
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[var(--color-bg-secondary)] rounded-lg p-0.5 border border-[var(--color-border)] mr-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex bg-[var(--color-bg-secondary)] rounded-lg p-0.5 border border-[var(--color-border)]">
               <button onClick={() => { setViewMode('list'); setSelectedTable(null); }}
                 className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', viewMode === 'list' ? 'bg-[var(--color-card-bg)] shadow-sm' : 'text-[var(--color-text-muted)]')}>
                 <Grid3x3 className="h-3.5 w-3.5 inline mr-1" />List
               </button>
               <button onClick={() => setViewMode('floor')}
                 className={cn('px-3 py-1.5 text-xs rounded-md transition-colors', viewMode === 'floor' ? 'bg-[var(--color-card-bg)] shadow-sm' : 'text-[var(--color-text-muted)]')}>
-                <Map className="h-3.5 w-3.5 inline mr-1" />Floor Plan
+                <Map className="h-3.5 w-3.5 inline mr-1" />Floor
               </button>
             </div>
-            <Button variant="secondary" leftIcon={<RefreshCw className="h-4 w-4" />} onClick={loadData}>Refresh</Button>
-            <Button leftIcon={<Plus className="h-4 w-4" />} onClick={openForm}>Add Table</Button>
+            <Button variant="secondary" size="sm" leftIcon={<RefreshCw className="h-4 w-4" />} onClick={loadData}>Refresh</Button>
+            <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openForm}>Add Table</Button>
           </div>
         }
       />
@@ -486,27 +486,27 @@ export default function Tables() {
     return (
       <div className="space-y-4">
         {/* Area Filter + Legend */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
           <select value={selectedArea} onChange={(e) => { setSelectedArea(e.target.value); setSelectedTable(null); }}
-            className="px-3 py-2 rounded-lg border bg-[var(--color-input-bg)] border-[var(--color-input-border)] text-sm">
+            className="w-full sm:w-auto px-3 py-2 rounded-lg border bg-[var(--color-input-bg)] border-[var(--color-input-border)] text-sm">
             <option value="">All areas</option>
             {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             <option value="unassigned">Unassigned</option>
           </select>
-          <div className="flex gap-3 text-xs text-[var(--color-text-muted)]">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Available</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Occupied</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reserved</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Cleaning</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Out of service</span>
+          <div className="flex gap-2 sm:gap-3 text-xs text-[var(--color-text-muted)] flex-wrap">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Avail</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Occ</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Res</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Clean</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400" /> OOS</span>
           </div>
-          <span className="text-xs text-[var(--color-text-muted)] ml-auto">{filteredFloorTables.length} tables shown</span>
+          <span className="text-xs text-[var(--color-text-muted)] sm:ml-auto">{filteredFloorTables.length} tables</span>
         </div>
 
         {/* Floor Canvas */}
         <div
           ref={floorRef}
-          className="relative w-full min-h-[500px] rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)] overflow-hidden"
+          className="relative w-full min-h-[400px] sm:min-h-[500px] rounded-xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)] overflow-hidden"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
@@ -574,7 +574,7 @@ export default function Tables() {
         {selectedTable && (
           <Card>
             <CardContent>
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className={cn('w-3 h-3 rounded-full', STATUS_DOTS[selectedTable.status] || 'bg-gray-400')} />
                   <div>
@@ -585,9 +585,9 @@ export default function Tables() {
                     </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                   <select value={selectedTable.status} onChange={(e) => changeAvailability(selectedTable, e.target.value)}
-                    className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)]">
+                    className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] w-24">
                     <option value="AVAILABLE">Available</option>
                     <option value="OCCUPIED">Occupied</option>
                     <option value="RESERVED">Reserved</option>
@@ -595,7 +595,7 @@ export default function Tables() {
                     <option value="OUT_OF_SERVICE">Out of service</option>
                   </select>
                   <button onClick={() => openEditForm(selectedTable)}
-                    className="px-3 py-1 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)]">
+                    className="px-3 py-1 text-xs rounded border border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] whitespace-nowrap">
                     <Edit3 className="h-3 w-3 inline mr-1" />Edit
                   </button>
                 </div>

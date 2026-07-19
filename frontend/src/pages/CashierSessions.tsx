@@ -55,14 +55,14 @@ export default function CashierSessions() {
         title="Cashier Sessions"
         description="Manage cash register sessions and reconciliation"
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             <button
               onClick={() => setTab('current')}
-              className={cn('px-3 py-1.5 text-xs rounded-lg border transition-colors', tab === 'current' ? 'bg-[var(--color-accent)] text-white' : 'border-[var(--color-border)]')}
+              className={cn('px-3 py-1.5 text-xs rounded-lg border transition-colors whitespace-nowrap', tab === 'current' ? 'bg-[var(--color-accent)] text-white' : 'border-[var(--color-border)]')}
             >Current</button>
             <button
               onClick={() => setTab('history')}
-              className={cn('px-3 py-1.5 text-xs rounded-lg border transition-colors', tab === 'history' ? 'bg-[var(--color-accent)] text-white' : 'border-[var(--color-border)]')}
+              className={cn('px-3 py-1.5 text-xs rounded-lg border transition-colors whitespace-nowrap', tab === 'history' ? 'bg-[var(--color-accent)] text-white' : 'border-[var(--color-border)]')}
             >History</button>
           </div>
         }
@@ -109,7 +109,7 @@ export default function CashierSessions() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={() => navigate(`/cashier-sessions/${current.id}`)} className="px-4 py-2 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:opacity-90">View Details</button>
                   {current.status === 'OPEN' && (
                     <button onClick={() => navigate(`/cashier-sessions/${current.id}?action=close`)} className="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-secondary)]">Begin Closing</button>
