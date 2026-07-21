@@ -1,12 +1,53 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { prisma } from '../database';
 import { requireAuth } from '../middleware/auth';
 import * as notificationService from '../services/notification.service';
-import { emitNewNotification, emitUnreadCountUpdate } from '../sockets';
+import { emitUnreadCountUpdate } from '../sockets';
 import { getSocketIO } from '../sockets/emitter';
+import { BadRequestError } from '../types';
+import { z } from 'zod';
 
 const router = Router();
 router.use(requireAuth);
+
+const preferenceSchema = z.object({
+  preferences: z.array(z.object({
+    category: z.enum(['ORDER', 'KITCHEN', 'PAYMENT', 'STOCK', 'RESERVATION', 'APPROVAL', 'TIP', 'SHIFT']),
+    inAppEnabled: z.boolean(),
+    soundEnabled: z.boolean(),
+  })).min(1),
+});
+
+// ==========================================
+// GET /notifications/preferences
+// ==========================================
+router.get('/preferences', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const targetUserId = (req.query.userId as string) || req.user!.id;
+    await notificationService.assertCanManageNotificationPreferences(req.user!, targetUserId);
+    const preferences = await notificationService.getNotificationPreferences(req.user!.restaurantId, targetUserId);
+    res.json({ success: true, data: { preferences } });
+  } catch (error) { next(error); }
+});
+
+// ==========================================
+// PUT /notifications/preferences
+// ==========================================
+router.put('/preferences', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const targetUserId = (req.query.userId as string) || req.user!.id;
+    await notificationService.assertCanManageNotificationPreferences(req.user!, targetUserId);
+    const { preferences } = preferenceSchema.parse(req.body);
+    const updated = await notificationService.updateNotificationPreferences(
+      req.user!.restaurantId,
+      targetUserId,
+      preferences
+    );
+    res.json({ success: true, message: 'Notification preferences updated', data: { preferences: updated } });
+  } catch (error) {
+    if (error instanceof z.ZodError) next(new BadRequestError(error.errors[0].message));
+    else next(error);
+  }
+});
 
 // ==========================================
 // GET /notifications - List with cursor pagination

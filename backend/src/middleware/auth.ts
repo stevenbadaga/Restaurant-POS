@@ -33,10 +33,15 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       throw new UnauthorizedError('Authentication required');
     }
 
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as {
       userId: string;
       restaurantId: string;
+      typ?: string;
     };
+
+    if (payload.typ !== 'access') {
+      throw new UnauthorizedError('Invalid authentication');
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
@@ -84,10 +89,16 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
   }
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ['HS256'] }) as {
       userId: string;
       restaurantId: string;
+      typ?: string;
     };
+
+    if (payload.typ !== 'access') {
+      next();
+      return;
+    }
 
     prisma.user
       .findUnique({

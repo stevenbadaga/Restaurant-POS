@@ -245,6 +245,7 @@ export default function PublicMenu() {
                     alt={item.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -306,6 +307,7 @@ export default function PublicMenu() {
                   src={getItemImage(itemDetail.item)!}
                   alt={itemDetail.item.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

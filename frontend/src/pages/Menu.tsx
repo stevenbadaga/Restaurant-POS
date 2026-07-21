@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   BookOpen, Edit3, Plus, RefreshCw, X, Image, Layers,
   ChefHat, Utensils, AlertTriangle, CheckCircle, Trash2,
-  ToggleLeft, ToggleRight, Package,
+  ToggleLeft, ToggleRight, Package, Upload, Link as LinkIcon,
 } from 'lucide-react';
 import { PageHeader, Card, CardContent, Button, EmptyState, Loading } from '@/components/ui';
 import api from '@/services/api';
@@ -87,6 +87,10 @@ function getItemImage(item: MenuItem): string {
   return item.imageUrl || FALLBACK_IMAGES[item.itemType] || FALLBACK_IMAGES.OTHER;
 }
 
+function isLocalMenuImage(imageUrl: string): boolean {
+  return imageUrl.startsWith('/uploads/menu/');
+}
+
 // ==========================================
 // BLANK FORMS
 // ==========================================
@@ -129,6 +133,10 @@ export default function Menu() {
   const [showItemForm, setShowItemForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [itemForm, setItemForm] = useState<ItemForm>(blankItem);
+  const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImageDeletes, setPendingImageDeletes] = useState<string[]>([]);
+  const [transientImages, setTransientImages] = useState<string[]>([]);
 
   // Category form
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -176,6 +184,9 @@ export default function Menu() {
 
   const openCreateItem = () => {
     setEditingItem(null);
+    setImageMode('url');
+    setPendingImageDeletes([]);
+    setTransientImages([]);
     setItemForm({
       ...blankItem,
       code: `MI-${String(items.length + 1).padStart(3, '0')}`,
@@ -188,6 +199,9 @@ export default function Menu() {
 
   const openEditItem = (item: MenuItem) => {
     setEditingItem(item);
+    setImageMode(item.imageUrl && isLocalMenuImage(item.imageUrl) ? 'upload' : 'url');
+    setPendingImageDeletes([]);
+    setTransientImages([]);
     setItemForm({
       name: item.name, code: item.code,
       description: item.description ?? '',
@@ -247,17 +261,73 @@ export default function Menu() {
         : await api.post('/menu/items', payload);
 
       const updated = response.data.data;
+      await deletePendingImages();
       setItems((prev) => editingItem
         ? prev.map((i) => i.id === editingItem.id ? updated : i)
         : [...prev, updated]);
       setSuccess(`${payload.name} ${editingItem ? 'updated' : 'created'}.`);
       setShowItemForm(false);
       setEditingItem(null);
+      setPendingImageDeletes([]);
+      setTransientImages([]);
     } catch (err) {
       setError(getErrorMessage(err, 'Could not save menu item'));
     } finally {
       setSaving(false);
     }
+  };
+
+  const deletePendingImages = async () => {
+    const uniqueDeletes = Array.from(new Set(pendingImageDeletes));
+    await Promise.all(uniqueDeletes.map((imageUrl) =>
+      api.delete('/menu/items/images', { params: { imageUrl } }).catch(() => undefined)
+    ));
+  };
+
+  const closeItemForm = async () => {
+    await Promise.all(transientImages.map((imageUrl) =>
+      api.delete('/menu/items/images', { params: { imageUrl } }).catch(() => undefined)
+    ));
+    setShowItemForm(false);
+    setEditingItem(null);
+    setPendingImageDeletes([]);
+    setTransientImages([]);
+  };
+
+  const uploadMenuImage = async (file: File) => {
+    if (!canEdit) { setError('You do not have permission to upload menu images.'); return; }
+    if (!file.type.startsWith('image/')) { setError('Choose an image file.'); return; }
+    if (file.size > 2 * 1024 * 1024) { setError('Image must be 2 MB or smaller.'); return; }
+
+    setUploadingImage(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await api.post('/menu/items/images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const nextImageUrl = response.data.data.imageUrl as string;
+      const currentImageUrl = itemForm.imageUrl;
+      if (currentImageUrl && isLocalMenuImage(currentImageUrl) && currentImageUrl !== nextImageUrl) {
+        setPendingImageDeletes((current) => [...current, currentImageUrl]);
+      }
+      setTransientImages((current) => [...current, nextImageUrl]);
+      setItemForm((current) => ({ ...current, imageUrl: nextImageUrl }));
+      setImageMode('upload');
+      setSuccess('Image uploaded. Save the item to keep it.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not upload image'));
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeCurrentImage = () => {
+    if (itemForm.imageUrl && isLocalMenuImage(itemForm.imageUrl)) {
+      setPendingImageDeletes((current) => [...current, itemForm.imageUrl]);
+    }
+    setItemForm({ ...itemForm, imageUrl: '' });
   };
 
   const toggleItemStatus = async (item: MenuItem, field: 'isActive' | 'isAvailable') => {
@@ -570,7 +640,7 @@ export default function Menu() {
                       Configure pricing, availability, kitchen station, and public visibility.
                     </p>
                   </div>
-                  <button type="button" onClick={() => setShowItemForm(false)}
+                  <button type="button" onClick={() => { void closeItemForm(); }}
                     className="rounded-lg p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-secondary)]">
                     <X className="h-4 w-4" />
                   </button>
@@ -640,22 +710,56 @@ export default function Menu() {
                 </div>
 
                 {/* Row 4: Image */}
-                <Field label="Image URL">
-                  <div className="flex gap-3">
-                    <input className="input-field flex-1" type="url" value={itemForm.imageUrl}
-                      onChange={(e) => setItemForm({ ...itemForm, imageUrl: e.target.value })}
-                      placeholder="https://images.unsplash.com/..." />
-                    {itemForm.imageUrl && (
-                      <div className="w-16 h-16 rounded-lg overflow-hidden border shrink-0">
-                        <img src={itemForm.imageUrl} alt="Preview" className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGES[itemForm.itemType]; }} />
+                <Field label="Image">
+                  <div className="space-y-3">
+                    <div className="inline-flex rounded-lg border border-[var(--color-border)] overflow-hidden">
+                      <button type="button" onClick={() => setImageMode('url')}
+                        className={`px-3 py-2 text-sm inline-flex items-center gap-2 ${imageMode === 'url' ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]'}`}>
+                        <LinkIcon className="h-4 w-4" /> URL
+                      </button>
+                      <button type="button" onClick={() => setImageMode('upload')}
+                        className={`px-3 py-2 text-sm inline-flex items-center gap-2 ${imageMode === 'upload' ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]'}`}>
+                        <Upload className="h-4 w-4" /> Upload
+                      </button>
+                    </div>
+
+                    <div className="flex gap-3 items-start">
+                      <div className="flex-1">
+                        {imageMode === 'url' ? (
+                          <input className="input-field" type="url" value={itemForm.imageUrl}
+                            onChange={(e) => setItemForm({ ...itemForm, imageUrl: e.target.value })}
+                            placeholder="https://images.unsplash.com/..." />
+                        ) : (
+                          <div className="space-y-2">
+                            <input className="input-field" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                              disabled={uploadingImage}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadMenuImage(file);
+                                e.currentTarget.value = '';
+                              }} />
+                            <p className="text-xs text-[var(--color-text-muted)]">JPEG, PNG, WebP, or GIF. Max 2 MB.</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {!itemForm.imageUrl && (
-                      <div className="w-16 h-16 rounded-lg overflow-hidden border shrink-0 bg-[var(--color-bg-secondary)] flex items-center justify-center">
-                        <Image className="h-6 w-6 text-[var(--color-text-muted)]" />
+
+                      <div className="w-24 space-y-2 shrink-0">
+                        <div className="w-24 h-24 rounded-lg overflow-hidden border bg-[var(--color-bg-secondary)] flex items-center justify-center">
+                          {itemForm.imageUrl ? (
+                            <img src={itemForm.imageUrl} alt="Preview" className="w-full h-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGES[itemForm.itemType]; }} />
+                          ) : (
+                            <Image className="h-7 w-7 text-[var(--color-text-muted)]" />
+                          )}
+                        </div>
+                        {itemForm.imageUrl && (
+                          <button type="button" onClick={removeCurrentImage}
+                            className="w-full text-xs px-2 py-1.5 rounded border border-red-200 text-red-600 hover:bg-red-50">
+                            Remove
+                          </button>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </Field>
 
@@ -704,7 +808,7 @@ export default function Menu() {
                 </Field>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
-                  <Button type="button" variant="secondary" onClick={() => setShowItemForm(false)}>Cancel</Button>
+                  <Button type="button" variant="secondary" onClick={() => { void closeItemForm(); }}>Cancel</Button>
                   <Button type="submit" isLoading={saving}>{editingItem ? 'Update Item' : 'Save Item'}</Button>
                 </div>
               </form>

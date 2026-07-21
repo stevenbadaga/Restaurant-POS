@@ -5,8 +5,6 @@ import * as reservationService from '../services/reservation.service';
 import * as notificationService from '../services/notification.service';
 import { BadRequestError } from '../types';
 import { prisma } from '../database';
-import { emitNewNotification } from '../sockets';
-import { getSocketIO } from '../sockets/emitter';
 
 const router = Router();
 router.use(requireAuth);
@@ -105,7 +103,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
     // Notify managers about new reservation
     try {
-      const io = getSocketIO();
       const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
       if (managerIds.length > 0) {
         const notifs = await notificationService.createBulkNotification({
@@ -117,9 +114,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
           entityType: 'reservation',
           entityId: reservation.id,
         });
-        for (const n of notifs) {
-          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
-        }
+        await notificationService.emitNotifications(notifs);
       }
     } catch (err) { console.error('Failed to send reservation notification:', err); }
 

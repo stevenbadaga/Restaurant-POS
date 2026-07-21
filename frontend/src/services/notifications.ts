@@ -15,6 +15,13 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface NotificationPreference {
+  category: 'ORDER' | 'KITCHEN' | 'PAYMENT' | 'STOCK' | 'RESERVATION' | 'APPROVAL' | 'TIP' | 'SHIFT';
+  inAppEnabled: boolean;
+  soundEnabled: boolean;
+  locked?: boolean;
+}
+
 // Get notifications list (cursor pagination)
 export const getNotifications = async (params?: Record<string, string>) => {
   const res = await api.get('/notifications', { params });
@@ -36,5 +43,15 @@ export const markAsRead = async (id: string) => {
 // Mark all notifications as read
 export const markAllAsRead = async () => {
   const res = await api.post('/notifications/read-all');
+  return res.data;
+};
+
+export const getNotificationPreferences = async (userId?: string) => {
+  const res = await api.get('/notifications/preferences', { params: userId ? { userId } : undefined });
+  return res.data;
+};
+
+export const updateNotificationPreferences = async (preferences: NotificationPreference[], userId?: string) => {
+  const res = await api.put('/notifications/preferences', { preferences }, { params: userId ? { userId } : undefined });
   return res.data;
 };

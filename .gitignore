@@ -38,11 +38,14 @@ backend/prisma/*.db-journal
 
 # Coverage
 coverage/
+playwright-report/
+test-results/
 
 # Misc
 .cache/
 tmp/
 temp/
+NUL
 
 # Prisma generated
 backend/src/generated/

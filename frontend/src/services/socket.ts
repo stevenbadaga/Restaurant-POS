@@ -8,9 +8,10 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || config.apiUrl.replace(/\/a
 
 let socket: Socket | null = null;
 
-export function connectSocket(restaurantId: string): Socket {
+export function connectSocket(restaurantId: string, userId?: string): Socket {
   if (socket?.connected) {
     socket.emit('join-restaurant', restaurantId);
+    if (userId) socket.emit('join-user', userId);
     return socket;
   }
 
@@ -22,6 +23,7 @@ export function connectSocket(restaurantId: string): Socket {
   socket.on('connect', () => {
     console.log('[Socket] Connected:', socket?.id);
     socket?.emit('join-restaurant', restaurantId);
+    if (userId) socket?.emit('join-user', userId);
   });
 
   socket.on('disconnect', (reason) => {

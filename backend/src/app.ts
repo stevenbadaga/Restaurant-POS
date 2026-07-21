@@ -1,11 +1,12 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import pinoHttp from 'pino-http';
-import { env } from './config';
+import { allowedOrigins, env } from './config';
 import routes from './routes';
 import logger from './logging/logger';
 import {
@@ -34,7 +35,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:'],
         fontSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'", ...(env.CLIENT_URL ? [env.CLIENT_URL] : [])],
+        connectSrc: ["'self'", ...allowedOrigins],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
         baseUri: ["'self'"],
@@ -90,7 +91,13 @@ if (env.NODE_ENV !== 'test') {
 // ==========================================
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'x-correlation-id'],
@@ -111,6 +118,7 @@ const generalLimiter = rateLimit({
   max: env.RATE_LIMIT_MAX || 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/health/live' || req.path === '/health/ready',
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
 
@@ -154,7 +162,7 @@ app.use('/api/payments', paymentLimiter);
 // Report export rate limiter
 const exportLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: env.RATE_LIMIT_MAX || 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many export requests. Please wait before generating another report.' },
@@ -195,6 +203,17 @@ app.use(cookieParser());
 
 // Compression
 app.use(compression());
+
+// Persistent uploaded assets
+app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIRECTORY), {
+  fallthrough: false,
+  index: false,
+  maxAge: env.NODE_ENV === 'production' ? '7d' : 0,
+  setHeaders(res) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  },
+}));
 
 // ==========================================
 // CSRF protection for state-changing methods

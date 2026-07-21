@@ -14,6 +14,8 @@ import {
   CalendarDays,
   ThumbsUp,
   Package,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -32,7 +34,10 @@ import {
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  getNotificationPreferences,
+  updateNotificationPreferences,
   type AppNotification,
+  type NotificationPreference,
 } from '@/services/notifications';
 import { connectSocket, disconnectSocket } from '@/services/socket';
 import { formatDate, formatRelativeTime } from '@/lib';
@@ -65,6 +70,36 @@ const NOTIFICATION_COLORS: Record<string, string> = {
   SYSTEM: 'bg-gray-100 dark:bg-gray-900/20 text-gray-600',
 };
 
+const CATEGORY_LABELS: Record<NotificationPreference['category'], string> = {
+  ORDER: 'Order',
+  KITCHEN: 'Kitchen',
+  PAYMENT: 'Payment',
+  STOCK: 'Stock',
+  RESERVATION: 'Reservation',
+  APPROVAL: 'Approval',
+  TIP: 'Tip',
+  SHIFT: 'Shift',
+};
+
+function playNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.04;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.12);
+  } catch {
+    // Browser may block audio until the user interacts with the page.
+  }
+}
+
 export default function Notifications() {
   const navigate = useNavigate();
   const { user, restaurant } = useAuth();
@@ -78,6 +113,8 @@ export default function Notifications() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [savingPreferences, setSavingPreferences] = useState(false);
 
   const socketRef = useRef<any>(null);
 
@@ -115,7 +152,8 @@ export default function Notifications() {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([fetchNotifications(), fetchUnreadCount()]);
+      const [,, prefResult] = await Promise.all([fetchNotifications(), fetchUnreadCount(), getNotificationPreferences()]);
+      setPreferences(prefResult.data.preferences);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load notifications');
     } finally {
@@ -129,10 +167,11 @@ export default function Notifications() {
 
   // Socket.IO for real-time notifications
   useEffect(() => {
-    const socket = connectSocket(restaurant?.id || '');
+    const socket = connectSocket(restaurant?.id || '', user?.id);
     socketRef.current = socket;
 
-    socket.on('notification:new', () => {
+    socket.on('notification:new', (payload: any) => {
+      if (payload?.soundEnabled) playNotificationSound();
       fetchNotifications();
       fetchUnreadCount();
     });
@@ -148,7 +187,27 @@ export default function Notifications() {
       socket.off('notification:unread-count');
       socket.disconnect();
     };
-  }, [restaurant?.id, fetchNotifications, fetchUnreadCount]);
+  }, [restaurant?.id, user?.id, fetchNotifications, fetchUnreadCount]);
+
+  const updatePreference = (category: NotificationPreference['category'], field: 'inAppEnabled' | 'soundEnabled', value: boolean) => {
+    setPreferences((prev) => prev.map((pref) => {
+      if (pref.category !== category) return pref;
+      if (field === 'inAppEnabled' && !value) return { ...pref, inAppEnabled: false, soundEnabled: false };
+      return { ...pref, [field]: value };
+    }));
+  };
+
+  const handleSavePreferences = async () => {
+    setSavingPreferences(true);
+    try {
+      const result = await updateNotificationPreferences(preferences);
+      setPreferences(result.data.preferences);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save notification preferences');
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
 
   const handleMarkAllRead = async () => {
     setMarkingAll(true);
@@ -201,7 +260,9 @@ export default function Notifications() {
       handleMarkRead(notification.id);
     }
 
-    if (notification.entityType === 'order' || notification.orderId) {
+    if (notification.entityType === 'approval_request') {
+      navigate('/approvals');
+    } else if (notification.entityType === 'order' || notification.orderId) {
       navigate(`/orders?id=${notification.orderId}`);
     } else if (notification.entityType === 'reservation') {
       navigate(`/reservations?id=${notification.entityId}`);
@@ -268,6 +329,38 @@ export default function Notifications() {
           Unread {unreadCount > 0 && `(${unreadCount})`}
         </button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Preferences</h2>
+              <p className="text-sm text-[var(--color-text-muted)]">Control in-app and sound alerts by category.</p>
+            </div>
+            <Button size="sm" onClick={handleSavePreferences} isLoading={savingPreferences}>Save</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {preferences.map((pref) => (
+              <div key={pref.category} className="rounded-lg border border-[var(--color-border)] p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-[var(--color-text-primary)]">{CATEGORY_LABELS[pref.category]}</span>
+                  {pref.soundEnabled ? <Volume2 className="h-4 w-4 text-[var(--color-text-muted)]" /> : <VolumeX className="h-4 w-4 text-[var(--color-text-muted)]" />}
+                </div>
+                <label className="mb-2 flex items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
+                  In-app
+                  <input type="checkbox" checked={pref.inAppEnabled} onChange={(e) => updatePreference(pref.category, 'inAppEnabled', e.target.checked)} />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-xs text-[var(--color-text-muted)]">
+                  Sound
+                  <input type="checkbox" checked={pref.soundEnabled} disabled={!pref.inAppEnabled} onChange={(e) => updatePreference(pref.category, 'soundEnabled', e.target.checked)} />
+                </label>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Notification List */}
       <Card>

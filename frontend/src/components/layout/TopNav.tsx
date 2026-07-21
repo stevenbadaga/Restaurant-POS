@@ -36,6 +36,25 @@ const NOTIF_COLORS: Record<string, string> = {
   TIP_RECEIVED: 'bg-pink-100 dark:bg-pink-900/20 text-pink-600',
 };
 
+function playNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.04;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.12);
+  } catch {
+    // Browser may block audio until the user interacts with the page.
+  }
+}
+
 export function TopNav({ onMenuClick, isCollapsed: _isCollapsed }: TopNavProps) {
   const navigate = useNavigate();
   const { user, restaurant, logout } = useAuth();
@@ -72,9 +91,10 @@ export function TopNav({ onMenuClick, isCollapsed: _isCollapsed }: TopNavProps) 
 
   // Socket.IO for real-time
   useEffect(() => {
-    const socket = connectSocket(restaurant?.id || '');
+    const socket = connectSocket(restaurant?.id || '', user?.id);
 
-    socket.on('notification:new', () => {
+    socket.on('notification:new', (payload: any) => {
+      if (payload?.soundEnabled) playNotificationSound();
       fetchUnreadCount();
       fetchRecentNotifs();
     });
@@ -88,7 +108,7 @@ export function TopNav({ onMenuClick, isCollapsed: _isCollapsed }: TopNavProps) 
       socket.off('notification:unread-count');
       socket.disconnect();
     };
-  }, [restaurant?.id]);
+  }, [restaurant?.id, user?.id]);
 
   // Close dropdown on outside click
   useEffect(() => {

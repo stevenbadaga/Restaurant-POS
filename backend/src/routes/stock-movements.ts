@@ -2,9 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { stockMovementService } from '../services';
 import { adjustmentSchema, transferSchema } from '../services/stock-movement.service';
 import { requireAuth, requireRole } from '../middleware/auth';
-import * as notificationService from '../services/notification.service';
-import { emitNewNotification } from '../sockets';
-import { getSocketIO } from '../sockets/emitter';
+import { createApprovalRequest } from '../services/approval-request.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -32,48 +30,32 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get('/summary', asyncHandler(async (req: Request, res: Response) => {
-  const restaurantId = getRestaurantId(req);
-  const summary = await stockMovementService.getInventorySummary(restaurantId);
+  const summary = await stockMovementService.getInventorySummary(getRestaurantId(req));
   res.json({ success: true, data: summary });
 }));
 
 router.get('/alerts', asyncHandler(async (req: Request, res: Response) => {
-  const restaurantId = getRestaurantId(req);
-  const alerts = await stockMovementService.getInventoryAlerts(restaurantId);
+  const alerts = await stockMovementService.getInventoryAlerts(getRestaurantId(req));
   res.json({ success: true, data: alerts });
 }));
 
 router.post('/adjustments', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
   const restaurantId = getRestaurantId(req);
   const userId = getUserId(req);
-  const userRoles = req.user?.roles ?? JSON.parse((req.headers['x-user-roles'] as string) || '[]');
   const data = adjustmentSchema.parse(req.body);
-  const movement = await stockMovementService.createAdjustment(restaurantId, data, userId, userRoles);
-
-  // Notify managers about adjustments by non-admin users
-  try {
-    const isAdminOrManager = userRoles.includes('ADMIN') || userRoles.includes('MANAGER');
-    if (!isAdminOrManager) {
-      const io = getSocketIO();
-      const managerIds = await notificationService.getUsersByRole(restaurantId, ['MANAGER']);
-      if (managerIds.length > 0) {
-        const notifs = await notificationService.createBulkNotification({
-          restaurantId,
-          userIds: managerIds,
-          type: 'APPROVAL_NEEDED',
-          title: `Stock Adjustment Completed — ${data.movementType}`,
-          message: `${data.quantity} units — ${data.reason}`,
-          entityType: 'stock_adjustment',
-          entityId: data.inventoryItemId,
-        });
-        for (const n of notifs) {
-          emitNewNotification(io, restaurantId, n.userId, { notification: n });
-        }
-      }
-    }
-  } catch (err) { console.error('Failed to notify managers about adjustment:', err); }
-
-  res.status(201).json({ success: true, data: movement, message: 'Adjustment recorded' });
+  const request = await createApprovalRequest({
+    restaurantId,
+    requestedById: userId,
+    requestType: 'STOCK_ADJUSTMENT',
+    title: `Stock adjustment requested: ${data.movementType}`,
+    description: `${data.quantity} units - ${data.reason}`,
+    entityType: 'stock_adjustment',
+    entityId: `${data.inventoryItemId}:${data.stockLocationId || 'default'}:${data.movementType}`,
+    payload: data as any,
+    ipAddress: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+  res.status(202).json({ success: true, data: request, message: 'Stock adjustment request submitted for approval' });
 }));
 
 router.post('/transfer', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncHandler(async (req: Request, res: Response) => {
@@ -85,8 +67,7 @@ router.post('/transfer', requireRole('ADMIN', 'MANAGER', 'STOCK_KEEPER'), asyncH
 }));
 
 router.get('/usage/waiters', asyncHandler(async (req: Request, res: Response) => {
-  const restaurantId = getRestaurantId(req);
-  const result = await stockMovementService.getWaiterUsage(restaurantId, {
+  const result = await stockMovementService.getWaiterUsage(getRestaurantId(req), {
     waiterId: req.query.waiterId as string,
     dateFrom: req.query.dateFrom as string,
     dateTo: req.query.dateTo as string,
@@ -99,8 +80,7 @@ router.get('/usage/waiters', asyncHandler(async (req: Request, res: Response) =>
 }));
 
 router.get('/usage/waiters/:waiterId', asyncHandler(async (req: Request, res: Response) => {
-  const restaurantId = getRestaurantId(req);
-  const result = await stockMovementService.getWaiterUsage(restaurantId, {
+  const result = await stockMovementService.getWaiterUsage(getRestaurantId(req), {
     waiterId: req.params.waiterId,
     dateFrom: req.query.dateFrom as string,
     dateTo: req.query.dateTo as string,

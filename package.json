@@ -20,9 +20,19 @@
     "db:create": "npm --prefix backend run db:create",
     "db:migrate": "npm --prefix backend run db:migrate",
     "db:seed": "npm --prefix backend run db:seed",
-    "db:studio": "npm --prefix backend run db:studio"
+    "db:studio": "npm --prefix backend run db:studio",
+    "prod:build": "docker compose --env-file .env.production -f docker-compose.prod.yml build",
+    "prod:up": "docker compose --env-file .env.production -f docker-compose.prod.yml up -d",
+    "prod:down": "docker compose --env-file .env.production -f docker-compose.prod.yml down",
+    "prod:logs": "docker compose --env-file .env.production -f docker-compose.prod.yml logs -f --tail=200",
+    "prod:migrate": "docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend npm run db:migrate:prod",
+    "prod:seed": "docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend npm run db:seed",
+    "prod:health": "docker compose --env-file .env.production -f docker-compose.prod.yml ps",
+    "e2e:setup": "node tests/e2e/ensure-test-users.js",
+    "e2e": "set AUTH_RATE_LIMIT_MAX=1000&& set RATE_LIMIT_MAX=10000&& npm run e2e:setup && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "concurrently": "^8.2.2"
   },
   "dependencies": {

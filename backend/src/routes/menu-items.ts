@@ -9,6 +9,17 @@ import { createAuditLog } from '../services/audit.service';
 const router = Router();
 router.use(requireAuth);
 
+const imageUrlSchema = z.string().trim().max(2048).refine((value) => {
+  if (!value) return true;
+  if (/^\/uploads\/menu\/[a-zA-Z0-9._-]+$/.test(value)) return true;
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol);
+  } catch {
+    return false;
+  }
+}, 'Image URL must be a valid http(s) URL');
+
 const menuItemSchema = z.object({
   categoryId: z.string().uuid().optional().nullable(),
   kitchenStationId: z.string().uuid().optional().nullable(),
@@ -24,10 +35,10 @@ const menuItemSchema = z.object({
   trackInventory: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   isActive: z.boolean().optional(),
-  imageUrl: z.string().optional().or(z.literal('')),
+  imageUrl: imageUrlSchema.optional().nullable().or(z.literal('')),
   displayOrder: z.number().int().optional(),
   publicDescription: z.string().optional().or(z.literal('')),
-  publicImageUrl: z.string().optional().or(z.literal('')),
+  publicImageUrl: imageUrlSchema.optional().nullable().or(z.literal('')),
   isFeatured: z.boolean().optional(),
   isPubliclyVisible: z.boolean().optional(),
   dietaryLabels: z.string().optional().or(z.literal('')),

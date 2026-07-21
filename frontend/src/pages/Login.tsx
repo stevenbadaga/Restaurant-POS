@@ -177,7 +177,7 @@ export default function Login() {
     <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-5">
       <FormMessage message={formError || error} />
 
-      <Field label="Email address" error={errors.email?.message}>
+      <Field label="Email address" htmlFor="email" error={errors.email?.message}>
         <input
           id="email"
           type="email"
@@ -188,7 +188,7 @@ export default function Login() {
         />
       </Field>
 
-      <Field label="Password" error={errors.password?.message}>
+      <Field label="Password" htmlFor="password" error={errors.password?.message}>
         <input
           id="password"
           type="password"
@@ -230,16 +230,18 @@ export default function Login() {
 
 function Field({
   label,
+  htmlFor,
   error,
   children,
 }: {
   label: string;
+  htmlFor?: string;
   error?: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-[var(--color-text-primary)]">
+      <label htmlFor={htmlFor} className="block text-sm font-medium text-[var(--color-text-primary)]">
         {label}
       </label>
       {children}

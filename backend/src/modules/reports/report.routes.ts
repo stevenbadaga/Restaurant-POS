@@ -82,6 +82,27 @@ router.get('/sales/waiters/:waiterId', requireRole('ADMIN', 'MANAGER'), async (r
 });
 
 // ==========================================
+// GET /api/reports/waiter-assignments
+// ==========================================
+router.get('/waiter-assignments', requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await reportService.getWaiterAssignmentReport(req.user!.restaurantId, {
+      preset: req.query.preset as string,
+      dateFrom: req.query.dateFrom as string,
+      dateTo: req.query.dateTo as string,
+    }, {
+      waiterId: req.query.waiterId as string,
+    }, {
+      page: req.query.page ? parseInt(req.query.page as string) : undefined,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+    });
+    return res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==========================================
 // GET /api/reports/sales/items
 // ==========================================
 router.get('/sales/items', requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response, next: NextFunction) => {
@@ -504,6 +525,40 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
         columns = ['Waiter', 'Orders', 'Dine-In', 'Takeaway', 'Order Value', 'Paid Value',
           'Outstanding', 'Avg Order', 'Items Served', 'Cancellations'];
         title = 'Sales by Waiter';
+        break;
+      }
+      case 'waiter_assignments': {
+        if (!req.user!.roles.includes('ADMIN') && !req.user!.roles.includes('MANAGER')) {
+          return res.status(403).json({ success: false, message: 'Insufficient permissions' });
+        }
+        const data = await reportService.getWaiterAssignmentReport(req.user!.restaurantId, {
+          preset: params.preset, dateFrom: params.dateFrom, dateTo: params.dateTo,
+        }, {}, { page: 1, limit: 1000 });
+        rows = data.waiters.map((w: any) => ({
+          Waiter: w.waiterName,
+          Employee: w.employeeCode || '',
+          'Assigned Tables': w.assignedTables,
+          'Assigned Table Count': w.assignedTableCount,
+          'Active Orders': w.activeOrderCount,
+          'Active Order Numbers': w.activeOrderNumbers,
+          'Customers Served': w.customersServed,
+          'Total Orders': w.totalOrders,
+          'Closed Orders': w.closedOrders,
+          Sales: w.sales,
+          Collected: w.collected,
+          Outstanding: w.outstanding,
+          Tips: w.tips,
+          'Scheduled Hours': w.scheduledHours,
+          'Worked Hours': w.workedHours,
+          'Overtime Hours': w.overtimeHours,
+          'Late Minutes': w.lateMinutes,
+          'Workload Score': w.workloadScore,
+        }));
+        columns = ['Waiter', 'Employee', 'Assigned Tables', 'Assigned Table Count', 'Active Orders',
+          'Active Order Numbers', 'Customers Served', 'Total Orders', 'Closed Orders', 'Sales',
+          'Collected', 'Outstanding', 'Tips', 'Scheduled Hours', 'Worked Hours', 'Overtime Hours',
+          'Late Minutes', 'Workload Score'];
+        title = 'Waiter Assignment Report';
         break;
       }
       case 'sales_items': {

@@ -257,6 +257,7 @@ export default function Payments() {
         idempotencyKey: `ref-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       });
       setShowRefundDialog(false);
+      setPaymentSuccess('Refund request submitted for manager approval');
       fetchData();
     } catch (err: any) {
       setPaymentError(err.response?.data?.message || 'Failed to issue refund');
@@ -271,6 +272,7 @@ export default function Payments() {
     try {
       await voidPayment(voidPaymentId, voidReason);
       setShowVoidDialog(false);
+      setPaymentSuccess('Payment void request submitted for manager approval');
       fetchData();
     } catch (err: any) {
       setPaymentError(err.response?.data?.message || 'Failed to void payment');

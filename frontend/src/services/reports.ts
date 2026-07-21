@@ -11,11 +11,9 @@ export interface ReportFilters {
 
 function buildParams(filters: ReportFilters): Record<string, string> {
   const params: Record<string, string> = {};
-  if (filters.preset) params.preset = filters.preset;
-  if (filters.dateFrom) params.dateFrom = filters.dateFrom;
-  if (filters.dateTo) params.dateTo = filters.dateTo;
-  if (filters.page) params.page = String(filters.page);
-  if (filters.limit) params.limit = String(filters.limit);
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params[key] = String(value);
+  });
   return params;
 }
 
@@ -38,6 +36,11 @@ export const getSalesByWaiters = async (filters: ReportFilters = {}) => {
 
 export const getSalesByWaiterDetail = async (waiterId: string, filters: ReportFilters = {}) => {
   const res = await api.get(`/reports/sales/waiters/${waiterId}`, { params: buildParams(filters) });
+  return res.data;
+};
+
+export const getWaiterAssignmentReport = async (filters: ReportFilters = {}) => {
+  const res = await api.get('/reports/waiter-assignments', { params: buildParams(filters) });
   return res.data;
 };
 
@@ -166,5 +169,6 @@ export const getExportUrl = (reportType: string, format: string, filters: Report
   if (filters.preset) params.set('preset', filters.preset);
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
   if (filters.dateTo) params.set('dateTo', filters.dateTo);
+  if (filters.waiterId) params.set('waiterId', filters.waiterId);
   return `/api/reports/export?${params.toString()}`;
 };

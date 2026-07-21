@@ -17,6 +17,10 @@ All project documentation is consolidated here:
 
 [docs/PROJECT_DOCUMENTATION.md](docs/PROJECT_DOCUMENTATION.md)
 
+Production deployment guide:
+
+[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)
+
 ## Local Login
 
 Development admin:
@@ -70,14 +74,15 @@ Verified connected modules:
 - Menu item create/update/availability
 - Staff create/update/roles/status
 - Inventory items/categories/locations/suppliers
-
-Not launch-ready yet:
 - Orders workflow
 - Kitchen Display System
 - Payments and receipts workflow
 - Cashier close workflow
 - Full inventory movement workflow
-- Backup/restore verification
-- Hardware testing
-- Automated tests
+- Public QR/customer flow
+- Playwright browser and security tests
 
+Operational items to verify per deployment:
+- HTTPS reverse proxy and domain DNS
+- Backup restore drill against a non-production database
+- Receipt printer/payment hardware integration

@@ -41,8 +41,8 @@ export function PublicRouteLayout() {
   }, [location.pathname]);
 
   const navLinks = [
-    { to: '/', label: 'Home' },
-    { to: '/menu', label: 'Menu' },
+    { to: '/welcome', label: 'Home' },
+    { to: '/public-menu', label: 'Menu' },
     { to: '/order', label: 'Order Online' },
     { to: '/track-order', label: 'Track Order' },
     { to: '/reserve', label: 'Reserve' },
@@ -208,7 +208,7 @@ export function PublicRouteLayout() {
                   <p className="text-gray-500 font-medium">Your cart is empty</p>
                   <p className="text-sm text-gray-400 mt-1">Add items from the menu to get started</p>
                   <button
-                    onClick={() => { setCartDrawerOpen(false); navigate('/menu'); }}
+                    onClick={() => { setCartDrawerOpen(false); navigate('/public-menu'); }}
                     className="mt-4 px-6 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors"
                   >
                     View Menu

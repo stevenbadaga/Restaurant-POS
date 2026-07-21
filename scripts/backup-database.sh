@@ -4,20 +4,23 @@
 # Usage: ./scripts/backup-database.sh [output_directory]
 #
 # Requirements: pg_dump must be installed and in PATH.
-# Reads DATABASE_URL from server/.env or environment.
+# Reads DATABASE_URL from backend/.env, .env.production, or environment.
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-ENV_FILE="$PROJECT_DIR/server/.env"
+ENV_FILE="${ENV_FILE:-$PROJECT_DIR/backend/.env}"
+PROD_ENV_FILE="$PROJECT_DIR/.env.production"
 BACKUP_DIR="${1:-$PROJECT_DIR/backups}"
 TIMESTAMP=$(date +"%Y-%m-%d-%H%M%S")
 BACKUP_FILE="$BACKUP_DIR/restaurant-pos-$TIMESTAMP.dump"
 CHECKSUM_FILE="$BACKUP_FILE.sha256"
 
 # Load environment variables
-if [ -f "$ENV_FILE" ]; then
+if [ -f "$PROD_ENV_FILE" ]; then
+  export $(grep -v '^\s*#' "$PROD_ENV_FILE" | grep -v '^\s*$' | xargs)
+elif [ -f "$ENV_FILE" ]; then
   export $(grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$' | xargs)
 fi
 

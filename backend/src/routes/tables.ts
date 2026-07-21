@@ -38,10 +38,14 @@ const availabilitySchema = z.object({
   status: z.enum(['AVAILABLE', 'RESERVED', 'CLEANING', 'OUT_OF_SERVICE']),
 });
 
+const sortFields = new Set(['name', 'code', 'capacity', 'status', 'displayOrder', 'createdAt', 'updatedAt']);
+
 // GET /api/tables
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { search, diningAreaId, status, isActive, page = '1', limit = '50', sort = 'displayOrder', order = 'asc' } = req.query;
+    const sortField = typeof sort === 'string' && sortFields.has(sort) ? sort : 'displayOrder';
+    const sortOrder = order === 'desc' ? 'desc' : 'asc';
     const where: any = { restaurantId: req.user!.restaurantId };
     if (diningAreaId) where.diningAreaId = diningAreaId as string;
     if (status) where.status = status as string;
@@ -65,7 +69,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         },
         skip: (pageNum - 1) * limitNum,
         take: limitNum,
-        orderBy: { [sort as string]: order as string },
+        orderBy: { [sortField]: sortOrder },
       }),
       prisma.restaurantTable.count({ where }),
     ]);

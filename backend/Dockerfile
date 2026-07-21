@@ -12,8 +12,8 @@ RUN apk add --no-cache openssl
 COPY package*.json ./
 COPY prisma/ ./prisma/
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install dependencies, including dev dependencies needed for TypeScript build
+RUN npm ci
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -47,8 +47,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
 
-# Create temp directory for PDFs
-RUN mkdir -p /app/temp && chown -R appuser:appgroup /app
+# Create persistent runtime directories
+RUN mkdir -p /app/temp /app/uploads /app/backups && chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
@@ -58,5 +58,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/health/live || exit 1
 
 EXPOSE 5000
+
+VOLUME ["/app/uploads", "/app/backups", "/app/temp"]
 
 CMD ["node", "dist/server.js"]

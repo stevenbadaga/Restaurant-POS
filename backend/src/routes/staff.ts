@@ -35,10 +35,14 @@ const rolesSchema = z.object({
   roleNames: z.array(z.string()).min(1, 'At least one role required'),
 });
 
+const sortFields = new Set(['firstName', 'lastName', 'email', 'employeeCode', 'status', 'lastLoginAt', 'createdAt', 'updatedAt']);
+
 // GET /api/staff
 router.get('/', requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { search, status, role, page = '1', limit = '25', sort = 'createdAt', order = 'desc' } = req.query;
+    const sortField = typeof sort === 'string' && sortFields.has(sort) ? sort : 'createdAt';
+    const sortOrder = order === 'asc' ? 'asc' : 'desc';
 
     const where: any = { restaurantId: req.user!.restaurantId };
     if (status) where.status = status;
@@ -64,7 +68,7 @@ router.get('/', requireRole('ADMIN', 'MANAGER'), async (req: Request, res: Respo
         include: { roles: { include: { role: true } } },
         skip,
         take: limitNum,
-        orderBy: { [sort as string]: order as string },
+        orderBy: { [sortField]: sortOrder },
       }),
       prisma.user.count({ where }),
     ]);

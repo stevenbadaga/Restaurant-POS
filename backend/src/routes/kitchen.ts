@@ -4,7 +4,7 @@ import { prisma } from '../database';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { BadRequestError, NotFoundError } from '../types';
 import { createAuditLog } from '../services/audit.service';
-import { emitKitchenTicketAccepted, emitKitchenTicketPreparing, emitKitchenTicketReady, emitNewNotification } from '../sockets';
+import { emitKitchenTicketAccepted, emitKitchenTicketPreparing, emitKitchenTicketReady } from '../sockets';
 import { getSocketIO } from '../sockets/emitter';
 import * as notificationService from '../services/notification.service';
 
@@ -284,7 +284,7 @@ router.patch('/tickets/:ticketId/mark-ready', requireRole('ADMIN', 'MANAGER', 'C
           entityType: 'order',
           entityId: ticket.orderId,
         });
-        emitNewNotification(io, req.user!.restaurantId, order.waiterId, { notification: notif });
+        if (notif) await notificationService.emitNotification(notif);
       }
     } catch { }
 

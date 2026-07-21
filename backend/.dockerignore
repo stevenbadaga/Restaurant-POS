@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+.env.*
+!.env.production.example
+npm-debug.log*
+*.log
+coverage
+temp
+backups
+uploads
+test-results

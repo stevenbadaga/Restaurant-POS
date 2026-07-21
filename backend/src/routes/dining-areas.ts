@@ -20,10 +20,14 @@ const updateSchema = z.object({
   displayOrder: z.number().int().optional(),
 });
 
+const sortFields = new Set(['name', 'displayOrder', 'createdAt', 'updatedAt']);
+
 // GET /api/dining-areas
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { search, isActive, sort = 'displayOrder', order = 'asc' } = req.query;
+    const sortField = typeof sort === 'string' && sortFields.has(sort) ? sort : 'displayOrder';
+    const sortOrder = order === 'desc' ? 'desc' : 'asc';
     const where: any = { restaurantId: req.user!.restaurantId };
     if (isActive !== undefined) where.isActive = isActive === 'true';
     if (search) where.name = { contains: search as string, mode: 'insensitive' };
@@ -34,7 +38,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         _count: { select: { tables: true } },
         tables: { where: { isActive: true }, select: { id: true } },
       },
-      orderBy: { [sort as string]: order as string },
+      orderBy: { [sortField]: sortOrder },
     });
 
     res.json({

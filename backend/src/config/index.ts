@@ -1,1 +1,1 @@
-export { env } from './env';
+export { allowedOrigins, env } from './env';

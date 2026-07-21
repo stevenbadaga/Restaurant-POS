@@ -6,7 +6,7 @@ import { BadRequestError, NotFoundError } from '../types';
 import { createAuditLog } from '../services/audit.service';
 import { toDecimal, roundMoney } from '../services/calculation.service';
 import { generateSequenceNumber } from '../services/sequence.service';
-import { emitOrderSubmittedToKitchen, emitOrderWaiterAssigned, emitOrderWaiterUnassigned, emitNewNotification } from '../sockets';
+import { emitOrderSubmittedToKitchen, emitOrderWaiterAssigned, emitOrderWaiterUnassigned } from '../sockets';
 import { getSocketIO } from '../sockets/emitter';
 import * as notificationService from '../services/notification.service';
 
@@ -195,7 +195,6 @@ async function deductStockForOrder(orderId: string, restaurantId: string, userId
 
   // Check for low stock on affected items (outside transaction to avoid holding it open)
   try {
-    const io = getSocketIO();
     const lowStockItems = await prisma.inventoryItem.findMany({
       where: {
         id: { in: Array.from(affectedItemIds) },
@@ -236,9 +235,7 @@ async function deductStockForOrder(orderId: string, restaurantId: string, userId
               entityType: 'inventory',
               entityId: invItem.id,
             });
-            for (const n of notifs) {
-              emitNewNotification(io, restaurantId, n.userId, { notification: n });
-            }
+            await notificationService.emitNotifications(notifs);
           }
         }
       }
@@ -452,6 +449,25 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // ==========================================
+// ACTIVE ORDERS (existing)
+// ==========================================
+
+router.get('/active', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const orders = await prisma.order.findMany({
+      where: { restaurantId: req.user!.restaurantId, status: { in: ['SUBMITTED', 'IN_PREPARATION', 'PARTIALLY_READY', 'READY', 'SERVED'] } },
+      include: {
+        waiter: { select: { id: true, firstName: true, lastName: true } },
+        table: { select: { name: true, code: true } },
+        _count: { select: { items: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: orders });
+  } catch (error) { next(error); }
+});
+
+// ==========================================
 // GET ORDER BY ID
 // ==========================================
 
@@ -509,26 +525,6 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
-// ==========================================
-// ACTIVE ORDERS (existing)
-// ==========================================
-
-router.get('/active', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const orders = await prisma.order.findMany({
-      where: { restaurantId: req.user!.restaurantId, status: { in: ['SUBMITTED', 'IN_PREPARATION', 'PARTIALLY_READY', 'READY', 'SERVED'] } },
-      include: {
-        waiter: { select: { id: true, firstName: true, lastName: true } },
-        table: { select: { name: true, code: true } },
-        _count: { select: { items: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json({ success: true, data: orders });
-  } catch (error) { next(error); }
-});
-
-// ==========================================
 // ADD ITEM TO ORDER
 // ==========================================
 
@@ -732,7 +728,6 @@ router.post('/:id/submit', async (req: Request, res: Response, next: NextFunctio
 
     // Create notifications for waiters and managers
     try {
-      const io = getSocketIO();
       const orderWaiterId = order.waiterId;
       const managerIds = await notificationService.getUsersByRole(req.user!.restaurantId, ['MANAGER']);
 
@@ -748,7 +743,7 @@ router.post('/:id/submit', async (req: Request, res: Response, next: NextFunctio
           entityType: 'order',
           entityId: req.params.id,
         });
-        emitNewNotification(io, req.user!.restaurantId, orderWaiterId, { notification: notif });
+        if (notif) await notificationService.emitNotification(notif);
       }
 
       // Notify all managers using bulk notification
@@ -763,9 +758,7 @@ router.post('/:id/submit', async (req: Request, res: Response, next: NextFunctio
           entityType: 'order',
           entityId: req.params.id,
         });
-        for (const n of notifs) {
-          emitNewNotification(io, req.user!.restaurantId, n.userId, { notification: n });
-        }
+        await notificationService.emitNotifications(notifs);
       }
     } catch (err) { console.error('Failed to create order notification:', err); }
 
@@ -1023,7 +1016,7 @@ router.patch('/:id/assign-waiter', requireRole('ADMIN', 'MANAGER'), async (req: 
         entityType: 'order',
         entityId: req.params.id,
       });
-      emitNewNotification(io, req.user!.restaurantId, waiter.id, { notification: notif });
+      if (notif) await notificationService.emitNotification(notif);
     } catch { /* Socket may not be initialized */ }
 
     res.json({

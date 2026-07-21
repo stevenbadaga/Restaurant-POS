@@ -795,6 +795,232 @@ export async function getSalesByWaiters(
 }
 
 // ==========================================
+// WAITER ASSIGNMENT REPORT
+// ==========================================
+
+export async function getWaiterAssignmentReport(
+  restaurantId: string,
+  dateFilter: ReportDateFilter,
+  filters: { waiterId?: string } = {},
+  pagination: ReportPagination = {}
+): Promise<any> {
+  const { dateFrom, dateTo } = await buildDateFilters(restaurantId, dateFilter.dateFrom, dateFilter.dateTo, dateFilter.preset);
+  const page = pagination.page || 1;
+  const limit = Math.min(pagination.limit || 25, 100);
+  const skip = (page - 1) * limit;
+
+  const orderDateFilter = dateFrom || dateTo ? { createdAt: dateRange(dateFrom, dateTo) } : {};
+  const paymentDateFilter = dateFrom || dateTo ? { completedAt: dateRange(dateFrom, dateTo) } : {};
+  const tipDateFilter = dateFrom || dateTo ? { recordedAt: dateRange(dateFrom, dateTo) } : {};
+  const shiftDateFilter = dateFrom || dateTo ? { scheduledStartAt: dateRange(dateFrom, dateTo) } : {};
+
+  const waiterWhere: any = {
+    restaurantId,
+    roles: { some: { role: { name: 'WAITER' } } },
+  };
+  if (filters.waiterId) waiterWhere.id = filters.waiterId;
+
+  const [waiters, total] = await Promise.all([
+    prisma.user.findMany({
+      where: waiterWhere,
+      select: { id: true, firstName: true, lastName: true, employeeCode: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+      skip,
+      take: limit,
+    }),
+    prisma.user.count({ where: waiterWhere }),
+  ]);
+
+  const waiterIds = waiters.map((waiter) => waiter.id);
+  if (waiterIds.length === 0) {
+    return {
+      waiters: [],
+      totals: emptyWaiterAssignmentTotals(),
+      total,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  const [assignedTables, activeOrders, reportOrders, payments, shifts] = await Promise.all([
+    prisma.restaurantTable.findMany({
+      where: { restaurantId, assignedWaiterId: { in: waiterIds }, isActive: true },
+      select: { id: true, name: true, code: true, capacity: true, status: true, assignedWaiterId: true, diningArea: { select: { name: true } } },
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    }),
+    prisma.order.findMany({
+      where: { restaurantId, waiterId: { in: waiterIds }, status: { notIn: ['DRAFT', 'CANCELLED', 'CLOSED'] } },
+      select: { id: true, waiterId: true, orderNumber: true, status: true, paymentStatus: true, totalAmount: true, amountDue: true, table: { select: { name: true, code: true } } },
+    }),
+    prisma.order.findMany({
+      where: { restaurantId, waiterId: { in: waiterIds }, status: { notIn: ['DRAFT', 'CANCELLED'] }, ...orderDateFilter },
+      select: {
+        id: true,
+        waiterId: true,
+        status: true,
+        orderType: true,
+        customerId: true,
+        customerName: true,
+        tableId: true,
+        totalAmount: true,
+        amountPaid: true,
+        amountDue: true,
+      },
+    }),
+    prisma.payment.findMany({
+      where: { restaurantId, status: 'COMPLETED', transactionType: 'PAYMENT', order: { waiterId: { in: waiterIds } }, ...paymentDateFilter },
+      select: { amount: true, order: { select: { waiterId: true } } },
+    }),
+    prisma.shiftAssignment.findMany({
+      where: { restaurantId, userId: { in: waiterIds }, ...shiftDateFilter },
+      select: {
+        userId: true,
+        status: true,
+        scheduledStartAt: true,
+        scheduledEndAt: true,
+        clockedInAt: true,
+        clockedOutAt: true,
+        workedMinutes: true,
+        overtimeMinutes: true,
+        lateMinutes: true,
+      },
+    }),
+  ]);
+
+  const orderWaiterById = new Map(reportOrders.map((order) => [order.id, order.waiterId]));
+  const reportOrderIds = reportOrders.map((order) => order.id);
+  const tips = await prisma.customerTip.findMany({
+    where: {
+      restaurantId,
+      status: { not: 'REVERSED' },
+      OR: [
+        { directRecipientUserId: { in: waiterIds } },
+        ...(reportOrderIds.length > 0 ? [{ directRecipientUserId: null, orderId: { in: reportOrderIds } }] : []),
+      ],
+      ...tipDateFilter,
+    },
+    select: { amount: true, directRecipientUserId: true, orderId: true },
+  });
+
+  const rows = waiters.map((waiter) => {
+    const waiterTables = assignedTables.filter((table) => table.assignedWaiterId === waiter.id);
+    const waiterActiveOrders = activeOrders.filter((order) => order.waiterId === waiter.id);
+    const waiterOrders = reportOrders.filter((order) => order.waiterId === waiter.id);
+    const waiterClosedOrders = waiterOrders.filter((order) => order.status === 'CLOSED');
+    const waiterPayments = payments.filter((payment) => payment.order.waiterId === waiter.id);
+    const waiterTips = tips.filter((tip) => (tip.directRecipientUserId || orderWaiterById.get(tip.orderId)) === waiter.id);
+    const waiterShifts = shifts.filter((shift) => shift.userId === waiter.id);
+
+    const customerKeys = new Set(
+      waiterClosedOrders.map((order) => order.customerId || order.customerName || order.id)
+    );
+    const sales = waiterClosedOrders.reduce((sum, order) => sum.plus(toDecimal(order.totalAmount)), new PrismaDecimal(0));
+    const collected = waiterPayments.reduce((sum, payment) => sum.plus(toDecimal(payment.amount)), new PrismaDecimal(0));
+    const outstanding = waiterOrders.reduce((sum, order) => sum.plus(toDecimal(order.amountDue)), new PrismaDecimal(0));
+    const tipTotal = waiterTips.reduce((sum: PrismaDecimal, tip: any) => sum.plus(toDecimal(tip.amount)), new PrismaDecimal(0));
+    const scheduledMinutes = waiterShifts.reduce((sum, shift) => sum + Math.max(0, shift.scheduledEndAt.getTime() - shift.scheduledStartAt.getTime()) / 60000, 0);
+    const workedMinutes = waiterShifts.reduce((sum, shift) => {
+      if (shift.workedMinutes !== null && shift.workedMinutes !== undefined) return sum + shift.workedMinutes;
+      if (shift.clockedInAt && shift.clockedOutAt) return sum + Math.max(0, shift.clockedOutAt.getTime() - shift.clockedInAt.getTime()) / 60000;
+      return sum;
+    }, 0);
+    const workloadScore = waiterTables.length * 2 + waiterActiveOrders.length * 3 + waiterOrders.length + Math.round(workedMinutes / 120);
+
+    return {
+      id: waiter.id,
+      firstName: waiter.firstName,
+      lastName: waiter.lastName,
+      waiterName: `${waiter.firstName} ${waiter.lastName}`,
+      employeeCode: waiter.employeeCode,
+      assignedTableCount: waiterTables.length,
+      assignedTables: waiterTables.map((table) => `${table.name}${table.code ? ` (${table.code})` : ''}`).join(', '),
+      activeOrderCount: waiterActiveOrders.length,
+      activeOrderNumbers: waiterActiveOrders.map((order) => order.orderNumber).join(', '),
+      customersServed: customerKeys.size,
+      closedOrders: waiterClosedOrders.length,
+      totalOrders: waiterOrders.length,
+      sales: roundMoney(sales).toFixed(2),
+      collected: roundMoney(collected).toFixed(2),
+      outstanding: roundMoney(outstanding).toFixed(2),
+      tips: roundMoney(tipTotal).toFixed(2),
+      scheduledHours: roundMoney(new PrismaDecimal(scheduledMinutes).div(60)).toFixed(2),
+      workedHours: roundMoney(new PrismaDecimal(workedMinutes).div(60)).toFixed(2),
+      overtimeHours: roundMoney(new PrismaDecimal(waiterShifts.reduce((sum, shift) => sum + (shift.overtimeMinutes || 0), 0)).div(60)).toFixed(2),
+      lateMinutes: waiterShifts.reduce((sum, shift) => sum + (shift.lateMinutes || 0), 0),
+      workloadScore,
+    };
+  });
+
+  const totals = rows.reduce((acc, row) => ({
+    assignedTableCount: acc.assignedTableCount + row.assignedTableCount,
+    activeOrderCount: acc.activeOrderCount + row.activeOrderCount,
+    customersServed: acc.customersServed + row.customersServed,
+    closedOrders: acc.closedOrders + row.closedOrders,
+    totalOrders: acc.totalOrders + row.totalOrders,
+    sales: acc.sales.plus(toDecimal(row.sales)),
+    collected: acc.collected.plus(toDecimal(row.collected)),
+    outstanding: acc.outstanding.plus(toDecimal(row.outstanding)),
+    tips: acc.tips.plus(toDecimal(row.tips)),
+    scheduledHours: acc.scheduledHours.plus(toDecimal(row.scheduledHours)),
+    workedHours: acc.workedHours.plus(toDecimal(row.workedHours)),
+    overtimeHours: acc.overtimeHours.plus(toDecimal(row.overtimeHours)),
+    lateMinutes: acc.lateMinutes + row.lateMinutes,
+  }), {
+    assignedTableCount: 0,
+    activeOrderCount: 0,
+    customersServed: 0,
+    closedOrders: 0,
+    totalOrders: 0,
+    sales: new PrismaDecimal(0),
+    collected: new PrismaDecimal(0),
+    outstanding: new PrismaDecimal(0),
+    tips: new PrismaDecimal(0),
+    scheduledHours: new PrismaDecimal(0),
+    workedHours: new PrismaDecimal(0),
+    overtimeHours: new PrismaDecimal(0),
+    lateMinutes: 0,
+  });
+
+  return {
+    waiters: rows.sort((a, b) => b.workloadScore - a.workloadScore),
+    totals: {
+      assignedTableCount: totals.assignedTableCount,
+      activeOrderCount: totals.activeOrderCount,
+      customersServed: totals.customersServed,
+      closedOrders: totals.closedOrders,
+      totalOrders: totals.totalOrders,
+      sales: roundMoney(totals.sales).toFixed(2),
+      collected: roundMoney(totals.collected).toFixed(2),
+      outstanding: roundMoney(totals.outstanding).toFixed(2),
+      tips: roundMoney(totals.tips).toFixed(2),
+      scheduledHours: roundMoney(totals.scheduledHours).toFixed(2),
+      workedHours: roundMoney(totals.workedHours).toFixed(2),
+      overtimeHours: roundMoney(totals.overtimeHours).toFixed(2),
+      lateMinutes: totals.lateMinutes,
+    },
+    total,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+}
+
+function emptyWaiterAssignmentTotals() {
+  return {
+    assignedTableCount: 0,
+    activeOrderCount: 0,
+    customersServed: 0,
+    closedOrders: 0,
+    totalOrders: 0,
+    sales: '0.00',
+    collected: '0.00',
+    outstanding: '0.00',
+    tips: '0.00',
+    scheduledHours: '0.00',
+    workedHours: '0.00',
+    overtimeHours: '0.00',
+    lateMinutes: 0,
+  };
+}
+
+// ==========================================
 // SALES BY ITEMS & CATEGORIES
 // ==========================================
 

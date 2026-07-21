@@ -296,7 +296,7 @@ export default function PublicHome() {
               {featuredItems.map((item) => (
                 <Link
                   key={item.id}
-                  to="/menu"
+                  to="/public-menu"
                   className="group relative bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-amber-200 transition-all duration-300"
                 >
                   <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
@@ -306,6 +306,7 @@ export default function PublicHome() {
                         alt={item.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -349,7 +350,7 @@ export default function PublicHome() {
 
             <div className="mt-8 text-center sm:hidden">
               <Link
-                to="/menu"
+                to="/public-menu"
                 className="inline-flex items-center gap-1 text-amber-600 font-medium hover:text-amber-700 transition-colors"
               >
                 View Full Menu
@@ -378,6 +379,7 @@ export default function PublicHome() {
                       alt={cat.name}
                       className="w-full h-24 object-cover rounded-lg mb-3"
                       loading="lazy"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
                     <div className="w-full h-24 bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg mb-3 flex items-center justify-center">

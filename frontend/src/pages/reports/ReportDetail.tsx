@@ -8,6 +8,7 @@ import { ReportDataTable, type Column } from '@/components/reports/ReportDataTab
 import { Loading } from '@/components/ui/Loading';
 import {
   getSalesOverview, getSalesByWaiters, getSalesByItems, getSalesByCategories,
+  getWaiterAssignmentReport,
   getPaymentSummary, getPaymentMethods, getOutstandingBalances,
   getCashierActivity, getRefundsReport, getReceiptReport,
   getKitchenPerformance, getTablePerformance, getDiningAreaReport,
@@ -46,6 +47,32 @@ const reportConfigs: Record<string, any> = {
       { key: 'closedOrderValue', label: 'Order Value', sortable: true, align: 'right' as const },
       { key: 'paidOrderValue', label: 'Paid Value', sortable: true, align: 'right' as const },
       { key: 'averageOrderValue', label: 'Avg Order', sortable: true, align: 'right' as const },
+    ],
+  },
+  'waiter-assignments': {
+    title: 'Waiter Assignment Report',
+    description: 'Assigned tables, active workload, sales, tips, customers, and shift hours by waiter',
+    fetcher: (f: any) => getWaiterAssignmentReport(f).then((r: any) => r.data),
+    dataKey: 'waiters',
+    totalKey: 'totals',
+    exportType: 'waiter_assignments',
+    cards: [
+      { key: 'assignedTableCount', label: 'Assigned Tables', color: 'blue' },
+      { key: 'activeOrderCount', label: 'Active Orders', color: 'purple' },
+      { key: 'customersServed', label: 'Customers Served', color: 'teal' },
+      { key: 'sales', label: 'Sales', color: 'green' },
+      { key: 'tips', label: 'Tips', color: 'amber' },
+      { key: 'workedHours', label: 'Worked Hours', color: 'indigo' },
+    ],
+    columns: [
+      { key: 'waiterName', label: 'Waiter', sortable: true },
+      { key: 'assignedTables', label: 'Assigned Tables' },
+      { key: 'activeOrderCount', label: 'Active Orders', sortable: true, align: 'right' as const },
+      { key: 'customersServed', label: 'Customers', sortable: true, align: 'right' as const },
+      { key: 'sales', label: 'Sales', sortable: true, align: 'right' as const },
+      { key: 'tips', label: 'Tips', sortable: true, align: 'right' as const },
+      { key: 'workedHours', label: 'Shift Hours', sortable: true, align: 'right' as const },
+      { key: 'workloadScore', label: 'Workload', sortable: true, align: 'right' as const },
     ],
   },
   'sales-by-item': {
@@ -364,6 +391,7 @@ export default function ReportDetail() {
   }
 
   const rawData = config.dataKey ? data?.[config.dataKey] : (config.dataIsArray ? data : null);
+  const summaryData = config.totalKey ? data?.[config.totalKey] : data;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -387,7 +415,7 @@ export default function ReportDetail() {
             <ReportSummaryCard
               key={card.key}
               label={card.label}
-              value={data?.[card.key] !== undefined ? String(data[card.key]) : '-'}
+              value={summaryData?.[card.key] !== undefined ? String(summaryData[card.key]) : '-'}
               loading={loading}
               color={card.color || 'blue'}
             />

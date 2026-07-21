@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
-import { env } from '../config';
+import { allowedOrigins, env } from '../config';
 import { ForbiddenError } from '../types/app-error';
 
 /**
@@ -12,6 +12,7 @@ import { ForbiddenError } from '../types/app-error';
 
 const CSRF_COOKIE = 'csrf_token';
 const CSRF_HEADER = 'x-csrf-token';
+const CSRF_MAX_AGE_MS = 60 * 60 * 1000;
 
 // Safe methods that don't require CSRF validation
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
@@ -20,7 +21,29 @@ const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
  * Generate a CSRF token.
  */
 export function generateCsrfToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  const nonce = crypto.randomBytes(32).toString('hex');
+  const timestamp = Date.now().toString();
+  const payload = `${timestamp}.${nonce}`;
+  const signature = crypto.createHmac('sha256', env.JWT_ACCESS_SECRET).update(payload).digest('hex');
+  return `${payload}.${signature}`;
+}
+
+function verifyCsrfToken(token: string): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+
+  const [timestamp, nonce, signature] = parts;
+  if (!/^\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(nonce) || !/^[a-f0-9]{64}$/i.test(signature)) {
+    return false;
+  }
+
+  const issuedAt = Number(timestamp);
+  if (!Number.isFinite(issuedAt) || Date.now() - issuedAt > CSRF_MAX_AGE_MS || issuedAt > Date.now() + 60_000) {
+    return false;
+  }
+
+  const expected = crypto.createHmac('sha256', env.JWT_ACCESS_SECRET).update(`${timestamp}.${nonce}`).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'));
 }
 
 /**
@@ -33,37 +56,18 @@ export function csrfTokenHandler(_req: Request, res: Response): void {
     secure: env.COOKIE_SECURE,
     sameSite: 'strict',
     path: '/',
+    maxAge: CSRF_MAX_AGE_MS,
+    domain: env.COOKIE_DOMAIN || undefined,
   });
   res.json({ success: true, token });
 }
 
-// Paths that bypass CSRF validation (authentication must work without CSRF)
-// Paths that bypass CSRF validation
-// CSRF is mitigated by httpOnly JWT cookies with SameSite='lax' and CORS validation
 const CSRF_EXCLUDED_PATHS = [
   '/api/auth/login',
   '/api/auth/refresh',
-  '/api/auth/logout',
-  '/api/auth/logout-all',
   '/api/security/csrf-token',
   '/api/setup',
-  '/api/public',
   '/api/health',
-  '/api/orders',
-  '/api/kitchen',
-  '/api/payments',
-  '/api/receipts',
-  '/api/staff',
-  '/api/menu',
-  '/api/tables',
-  '/api/dining-areas',
-  '/api/inventory',
-  '/api/suppliers',
-  '/api/customers',
-  '/api/reservations',
-  '/api/promotions',
-  '/api/settings',
-  '/api/reports',
 ];
 
 /**
@@ -91,7 +95,7 @@ export function csrfProtection(req: Request, _res: Response, next: NextFunction)
   const cookieToken = req.cookies?.[CSRF_COOKIE];
   const headerToken = req.headers[CSRF_HEADER] as string | undefined;
 
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+  if (!cookieToken || !headerToken || cookieToken !== headerToken || !verifyCsrfToken(headerToken)) {
     next(new ForbiddenError('Invalid or missing CSRF token'));
     return;
   }
@@ -117,8 +121,6 @@ export function originValidation(req: Request, _res: Response, next: NextFunctio
     next();
     return;
   }
-
-  const allowedOrigins = env.CLIENT_URL.split(',').map((s: string) => s.trim());
 
   const requestOrigin = origin || referer;
   if (requestOrigin) {

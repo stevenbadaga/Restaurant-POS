@@ -347,9 +347,7 @@ export async function recordPayment(
 
   // Create notification for order's waiter about payment received
   try {
-    const { createNotification } = await import('./notification.service');
-    const { emitNewNotification } = await import('../sockets');
-    const { io } = await import('../server');
+    const { createNotification, emitNotification } = await import('./notification.service');
 
     if (order.waiterId) {
       const notif = await createNotification({
@@ -362,7 +360,7 @@ export async function recordPayment(
         entityType: 'order',
         entityId: orderId,
       });
-      emitNewNotification(io, input.restaurantId, order.waiterId, { notification: notif });
+      if (notif) await emitNotification(notif);
     }
   } catch (err) { console.error('Failed to create payment notification:', err); }
 

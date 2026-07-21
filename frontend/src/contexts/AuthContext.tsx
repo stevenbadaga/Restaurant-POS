@@ -65,6 +65,8 @@ const AuthContext = createContext<AuthContextType>({
   refreshCurrentUser: async () => undefined,
 });
 
+const SESSION_HINT_KEY = 'restaurant_pos_has_session';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -86,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setUser(null);
       setRestaurant(null);
+      window.localStorage.removeItem(SESSION_HINT_KEY);
     } finally {
       setLoading(false);
     }
@@ -105,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await api.post('/auth/login', input);
       applyAuthPayload(result.data.data || result.data);
+      window.localStorage.setItem(SESSION_HINT_KEY, 'true');
     } catch (err) {
       const message = getErrorMessage(err, 'Login failed');
       setError(message);
@@ -120,6 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await api.post('/setup/initialize', input);
       applyAuthPayload(result.data.data || result.data);
+      window.localStorage.setItem(SESSION_HINT_KEY, 'true');
     } catch (err) {
       const message = getErrorMessage(err, 'Setup failed');
       setError(message);
@@ -138,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     setLoading(true);
     setError(null);
+    window.localStorage.removeItem(SESSION_HINT_KEY);
     try {
       await api.post('/auth/logout');
     } finally {
@@ -148,10 +154,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Check if we have a session cookie by trying to refresh
-    api.post('/auth/refresh').then(() => fetchUser()).catch(() => {
+    if (window.localStorage.getItem(SESSION_HINT_KEY) !== 'true') {
       setLoading(false);
-    });
+      return;
+    }
+
+    fetchUser();
   }, [fetchUser]);
 
   return (

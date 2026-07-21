@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import fs from 'fs/promises';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -13,6 +15,35 @@ async function hashPassword(password: string): Promise<string> {
 
 function formatCurrency(amount: number): number {
   return Math.round(amount * 100) / 100;
+}
+
+const SEEDED_LOCAL_MENU_IMAGES: Record<string, { filename: string; label: string; color: string }> = {
+  'Caesar Salad': { filename: 'seed-caesar-salad.svg', label: 'Caesar Salad', color: '#4f8f46' },
+  'Ribeye Steak': { filename: 'seed-ribeye-steak.svg', label: 'Ribeye Steak', color: '#7f2f24' },
+  'Tiramisu': { filename: 'seed-tiramisu.svg', label: 'Tiramisu', color: '#8a623d' },
+  'Cappuccino': { filename: 'seed-cappuccino.svg', label: 'Cappuccino', color: '#9a6b42' },
+};
+
+async function createSeedLocalMenuImages(): Promise<Record<string, string>> {
+  const uploadRoot = path.resolve(process.env.UPLOAD_DIRECTORY || './uploads');
+  const menuDirectory = path.join(uploadRoot, 'menu');
+  await fs.mkdir(menuDirectory, { recursive: true });
+
+  const imageUrls: Record<string, string> = {};
+  for (const [itemName, image] of Object.entries(SEEDED_LOCAL_MENU_IMAGES)) {
+    const filePath = path.join(menuDirectory, image.filename);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="${image.label}">
+  <rect width="800" height="600" fill="${image.color}"/>
+  <circle cx="650" cy="120" r="170" fill="rgba(255,255,255,0.16)"/>
+  <circle cx="120" cy="520" r="210" fill="rgba(0,0,0,0.12)"/>
+  <text x="64" y="308" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700">${image.label}</text>
+  <text x="68" y="366" fill="rgba(255,255,255,0.82)" font-family="Arial, Helvetica, sans-serif" font-size="28">Savanna Bistro</text>
+</svg>`;
+    await fs.writeFile(filePath, svg, 'utf8');
+    imageUrls[itemName] = `/uploads/menu/${image.filename}`;
+  }
+
+  return imageUrls;
 }
 
 // ==========================================
@@ -727,6 +758,7 @@ async function main() {
 
   // --- 6. Menu Items ---
   console.log('\n🍽️  Creating menu items...');
+  const localMenuImages = await createSeedLocalMenuImages();
   const menuItemRecords: Array<{ id: string; name: string; code: string; price: number; kitchenStationName: string }> = [];
   for (let i = 0; i < MENU_ITEMS.length; i++) {
     const item = MENU_ITEMS[i];
@@ -748,7 +780,7 @@ async function main() {
         trackInventory: item.trackInventory,
         isAvailable: true,
         isActive: true,
-        imageUrl: item.imageUrl,
+        imageUrl: localMenuImages[item.name] || item.imageUrl,
         displayOrder: item.displayOrder,
       },
     });

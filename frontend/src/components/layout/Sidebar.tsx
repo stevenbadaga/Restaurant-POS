@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Grid3x3,
   Bell,
+  ShieldCheck,
   ClipboardList,
   ClipboardCheck,
   QrCode,
@@ -16,6 +17,7 @@ import {
   Settings,
   Clock,
   CalendarDays,
+  ListChecks,
   UserCheck,
   DollarSign,
   MessageSquare,
@@ -30,6 +32,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 const mainNav = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Notifications', path: '/notifications', icon: Bell },
+  { label: 'Approvals', path: '/approvals', icon: ShieldCheck },
   { label: 'My Shift', path: '/my-shift', icon: Clock },
   { label: 'Tables', path: '/tables', icon: Grid3x3 },
   { label: 'QR Codes', path: '/tables/qr-codes', icon: QrCode },
@@ -40,6 +43,7 @@ const mainNav = [
 const managementNav = [
   { label: 'Menu', path: '/menu', icon: BookOpen },
   { label: 'Inventory', path: '/inventory', icon: Package },
+  { label: 'Waiting List', path: '/waiting-list', icon: ListChecks },
   { label: 'Payments', path: '/payments', icon: CreditCard },
   { label: 'Tips & Pooling', path: '/tips', icon: DollarSign },
   { label: 'Receipts', path: '/receipts', icon: Receipt },

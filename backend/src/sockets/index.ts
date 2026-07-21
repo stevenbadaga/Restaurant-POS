@@ -309,7 +309,6 @@ export const emitTipReversed = (io: SocketIOServer, restaurantId: string, userId
 
 export const emitNewNotification = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {
   emitUserEvent(io, userId, 'notification:new', data);
-  emitPaymentEvent(io, restaurantId, 'notification:new', data);
 };
 
 export const emitUnreadCountUpdate = (io: SocketIOServer, restaurantId: string, userId: string, data: any): void => {

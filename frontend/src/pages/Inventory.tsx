@@ -305,7 +305,7 @@ export default function Inventory() {
         movementType: adjForm.movementType,
         reason: adjForm.reason,
       });
-      setSuccess('Adjustment recorded.');
+      setSuccess('Adjustment request submitted for manager approval.');
       setShowAdjForm(false);
       setAdjForm({ inventoryItemId: '', stockLocationId: '', quantity: '', movementType: 'MANUAL_ADJUSTMENT_IN', reason: '' });
     } catch (err) { setError(getErrorMessage(err, 'Failed to create adjustment')); }

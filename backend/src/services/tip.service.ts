@@ -97,9 +97,7 @@ export async function recordTip(input: RecordTipInput) {
 
   // Create TIP_RECEIVED notification for the recipient
   try {
-    const { createNotification } = await import('./notification.service');
-    const { emitNewNotification } = await import('../sockets');
-    const { io } = await import('../server');
+    const { createNotification, emitNotification } = await import('./notification.service');
     const recipientId = input.directRecipientUserId || order.waiterId;
     if (recipientId) {
       const notif = await createNotification({
@@ -111,7 +109,7 @@ export async function recordTip(input: RecordTipInput) {
         entityType: 'tip',
         entityId: tip.id,
       });
-      emitNewNotification(io, restaurantId, recipientId, { notification: notif });
+      if (notif) await emitNotification(notif);
     }
   } catch (err) { console.error('Failed to create tip notification:', err); }
 
