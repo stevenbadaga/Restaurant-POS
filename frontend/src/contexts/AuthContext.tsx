@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import api from '@/services/api';
+import api, { refreshCsrfToken } from '@/services/api';
 
 export interface User {
   id: string;
@@ -145,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     window.localStorage.removeItem(SESSION_HINT_KEY);
     try {
+      await refreshCsrfToken();
       await api.post('/auth/logout');
     } finally {
       setUser(null);

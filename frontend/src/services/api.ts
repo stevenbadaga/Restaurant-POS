@@ -35,6 +35,11 @@ async function getCsrfToken(): Promise<string> {
   return csrfTokenRequest;
 }
 
+export async function refreshCsrfToken(): Promise<string> {
+  csrfToken = null;
+  return getCsrfToken();
+}
+
 api.interceptors.request.use(async (request) => {
   const method = request.method?.toLowerCase();
   if (method && unsafeMethods.has(method)) {
