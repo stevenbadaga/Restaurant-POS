@@ -1,6 +1,6 @@
 import { prisma } from '../database';
 
-type SequenceType = 'ORDER' | 'STOCK_RECEIPT' | 'PAYMENT' | 'RECEIPT' | 'CREDIT_NOTE' | 'CASHIER_SESSION' | 'CUSTOMER' | 'RESERVATION' | 'WAITING_LIST' | 'LOYALTY_TRANSACTION' | 'TIP' | 'TIP_POOL';
+type SequenceType = 'ORDER' | 'STOCK_RECEIPT' | 'PAYMENT' | 'RECEIPT' | 'CREDIT_NOTE' | 'CASHIER_SESSION' | 'CUSTOMER' | 'RESERVATION' | 'WAITING_LIST' | 'LOYALTY_TRANSACTION' | 'TIP' | 'TIP_POOL' | 'REQUISITION' | 'PURCHASE_ORDER' | 'SUPPLIER_INVOICE' | 'SUPPLIER_RETURN' | 'STOCK_COUNT';
 
 /**
  * Generate the next sequential document number for a given type.

@@ -47,6 +47,7 @@ import approvalRequestsRouter from './approval-requests';
 import auditRouter from './audit';
 import monitoringRouter from './monitoring';
 import printersRouter from './printers';
+import procurementRouter from './procurement';
 import backupRouter from './backup';
 
 const router = Router();
@@ -118,6 +119,9 @@ router.use('/monitoring', monitoringRouter);
 router.use('/settings', settingsRouter);
 // === Printing Infrastructure ===
 router.use('/printers', printersRouter);
+
+// === Phase 11: Procurement ===
+router.use('/procurement', procurementRouter);
 
 router.use('/backup', backupRouter);
 

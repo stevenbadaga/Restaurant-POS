@@ -646,6 +646,13 @@ model Restaurant {
   importJobs                   ImportJob[]                         @relation("importJobRestaurant")
   uatScenarios                 UATScenario[]                       @relation("uatRestaurant")
   // Phase 11: Procurement
+  purchaseRequisitions           PurchaseRequisition[]
+  purchaseOrders                 PurchaseOrder[]
+  purchaseOrderApprovals         PurchaseApproval[]
+  supplierQuotations             SupplierQuotation[]
+  supplierInvoices               SupplierInvoice[]
+  supplierReturns                SupplierReturn[]
+  stockCounts                    StockCount[]
   // Phase 10: Public website
   openingHours                 RestaurantOpeningHour[]
   openingHourPeriods           OpeningHourPeriod[]
@@ -966,7 +973,23 @@ model User {
   scPoolCreatedBy             ServiceChargePool[]                 @relation("scPoolCreatedBy")
   scPoolCalculatedBy          ServiceChargePool[]                 @relation("scPoolCalculatedBy")
   scPoolApprovedBy            ServiceChargePool[]                 @relation("scPoolApprovedBy")
-  printJobs                   PrintJob[]
+  // Procurement
+  purchaseRequisitionsCreated     PurchaseRequisition[]     @relation("purchaseRequisitionCreatedBy")
+  purchaseRequisitionsApproved    PurchaseRequisition[]     @relation("purchaseRequisitionApprovedBy")
+  purchaseOrdersCreated           PurchaseOrder[]           @relation("purchaseOrderCreatedBy")
+  purchaseOrdersApproved          PurchaseOrder[]           @relation("purchaseOrderApprovedBy")
+  purchaseOrdersReceived          PurchaseOrder[]           @relation("purchaseOrderReceivedBy")
+  purchaseApprovalsCreated        PurchaseApproval[]        @relation("purchaseApprovalCreatedBy")
+  supplierInvoicesCreated         SupplierInvoice[]         @relation("supplierInvoiceCreatedBy")
+  supplierInvoicesApproved        SupplierInvoice[]         @relation("supplierInvoiceApprovedBy")
+  supplierReturnsCreated          SupplierReturn[]          @relation("supplierReturnCreatedBy")
+  supplierReturnsApproved         SupplierReturn[]          @relation("supplierReturnApprovedBy")
+  stockCountsCreated              StockCount[]              @relation("stockCountCreatedBy")
+  stockCountsApproved             StockCount[]              @relation("stockCountApprovedBy")
+  stockCountLines                 StockCountLine[]
+  stockCountLineRecounts          StockCountLine[]          @relation("stockCountLineRecountedBy")
+  supplierInvoicesPaid            SupplierInvoice[]         @relation("supplierInvoicePaidBy")
+  printJobs                       PrintJob[]
 
   @@index([restaurantId])
   @@index([email])
@@ -1776,6 +1799,10 @@ model StockLocation {
   inventoryAlerts        InventoryAlert[]
   menuItemInventoryLinks MenuItemInventoryLink[]
   recipeIngredients      RecipeIngredient[]
+  purchaseRequisitionLines PurchaseRequisitionLine[]
+  purchaseOrderLines       PurchaseOrderLine[]
+  stockCounts              StockCount[]
+  stockCountLines          StockCountLine[]
 
   @@unique([restaurantId, name])
   @@unique([restaurantId, code])
@@ -1827,6 +1854,12 @@ model InventoryItem {
   recipeIngredients      RecipeIngredient[]
   menuItemInventoryLinks MenuItemInventoryLink[]
   stockReceiptLines      StockReceiptLine[]
+  purchaseRequisitionLines PurchaseRequisitionLine[]
+  purchaseOrderLines       PurchaseOrderLine[]
+  supplierInvoiceLines     SupplierInvoiceLine[]
+  supplierQuotationLines   SupplierQuotationLine[]
+  supplierReturnLines      SupplierReturnLine[]
+  stockCountLines          StockCountLine[]
 
   @@unique([restaurantId, sku])
   @@unique([restaurantId, barcode])
@@ -1868,7 +1901,12 @@ model Supplier {
   updatedAt     DateTime @updatedAt
 
   restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
-  stockReceipts StockReceipt[]
+  stockReceipts       StockReceipt[]
+  purchaseRequisitions PurchaseRequisition[]
+  purchaseOrders       PurchaseOrder[]
+  supplierQuotations   SupplierQuotation[]
+  supplierInvoices     SupplierInvoice[]
+  supplierReturns      SupplierReturn[]
 
   @@unique([restaurantId, supplierCode])
   @@index([restaurantId, isActive])
@@ -4495,4 +4533,362 @@ model PrintJob {
   @@index([receiptId])
   @@index([status])
   @@index([createdAt])
+}
+
+// ==========================================
+// PHASE 11: PROCUREMENT MODELS
+// ==========================================
+
+model PurchaseRequisition {
+  id              String                     @id @default(uuid())
+  restaurantId    String
+  requisitionNumber String
+  supplierId      String?
+  status          PurchaseRequisitionStatus  @default(DRAFT)
+  priority        PurchasePriority           @default(NORMAL)
+  expectedDate    DateTime?
+  notes           String?
+  subtotal        Decimal                    @default(0)
+  totalAmount     Decimal                    @default(0)
+  createdById     String
+  approvedById    String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectionReason String?
+  convertedToPOId String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+
+  restaurant Restaurant           @relation(fields: [restaurantId], references: [id])
+  supplier   Supplier?            @relation(fields: [supplierId], references: [id])
+  createdBy  User                 @relation("purchaseRequisitionCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?                @relation("purchaseRequisitionApprovedBy", fields: [approvedById], references: [id])
+  lines      PurchaseRequisitionLine[]
+  convertedOrders PurchaseOrder[] @relation("convertedRequisition")
+
+  @@unique([restaurantId, requisitionNumber])
+  @@index([restaurantId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model PurchaseRequisitionLine {
+  id                String   @id @default(uuid())
+  requisitionId     String
+  inventoryItemId   String
+  stockLocationId   String?
+  quantityRequested Decimal
+  quantityApproved  Decimal?
+  unitCost          Decimal  @default(0)
+  lineTotal         Decimal  @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  requisition   PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem       @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation?      @relation(fields: [stockLocationId], references: [id])
+
+  @@index([requisitionId])
+  @@index([inventoryItemId])
+}
+
+model PurchaseOrder {
+  id               String              @id @default(uuid())
+  restaurantId     String
+  orderNumber      String
+  supplierId       String?
+  requisitionId    String?
+  status           PurchaseOrderStatus @default(DRAFT)
+  priority         PurchasePriority    @default(NORMAL)
+  orderDate        DateTime
+  expectedDate     DateTime?
+  deliveredDate    DateTime?
+  notes            String?
+  subtotal         Decimal             @default(0)
+  taxAmount        Decimal             @default(0)
+  shippingCost     Decimal             @default(0)
+  totalAmount      Decimal             @default(0)
+  createdById      String
+  approvedById     String?
+  receivedById     String?
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  restaurant       Restaurant          @relation(fields: [restaurantId], references: [id])
+  supplier         Supplier?           @relation(fields: [supplierId], references: [id])
+  requisition      PurchaseRequisition? @relation("convertedRequisition", fields: [requisitionId], references: [id])
+  createdBy        User                @relation("purchaseOrderCreatedBy", fields: [createdById], references: [id])
+  approvedBy       User?               @relation("purchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  receivedBy       User?               @relation("purchaseOrderReceivedBy", fields: [receivedById], references: [id])
+  lines            PurchaseOrderLine[]
+  approvals        PurchaseApproval[]
+  invoices         SupplierInvoice[]
+  quotations       SupplierQuotation[]
+  returns          SupplierReturn[]
+
+  @@unique([restaurantId, orderNumber])
+  @@index([restaurantId])
+  @@index([supplierId])
+  @@index([requisitionId])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model PurchaseOrderLine {
+  id                String   @id @default(uuid())
+  purchaseOrderId   String
+  inventoryItemId   String
+  stockLocationId   String?
+  quantityOrdered   Decimal
+  quantityReceived  Decimal  @default(0)
+  unitCost          Decimal
+  lineTotal         Decimal  @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation? @relation(fields: [stockLocationId], references: [id])
+  invoiceLines  SupplierInvoiceLine[]
+
+  @@index([purchaseOrderId])
+  @@index([inventoryItemId])
+}
+
+model PurchaseApproval {
+  id             String                 @id @default(uuid())
+  restaurantId   String
+  purchaseOrderId String
+  status         PurchaseApprovalStatus @default(PENDING)
+  comments       String?
+  createdById    String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     User          @relation("purchaseApprovalCreatedBy", fields: [createdById], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model SupplierQuotation {
+  id              String                    @id @default(uuid())
+  restaurantId    String
+  purchaseOrderId String?
+  supplierId      String?
+  quotationNumber String
+  quotationDate   DateTime
+  validUntil      DateTime?
+  status          SupplierQuotationStatus   @default(RECEIVED)
+  subtotal        Decimal                   @default(0)
+  taxAmount       Decimal                   @default(0)
+  shippingCost    Decimal                   @default(0)
+  totalAmount     Decimal                   @default(0)
+  notes           String?
+  fileUrl         String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  restaurant    Restaurant     @relation(fields: [restaurantId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  supplier      Supplier?       @relation(fields: [supplierId], references: [id])
+  lines          SupplierQuotationLine[]
+
+  @@unique([restaurantId, quotationNumber])
+  @@index([restaurantId])
+  @@index([purchaseOrderId])
+  @@index([supplierId])
+}
+
+model SupplierQuotationLine {
+  id              String   @id @default(uuid())
+  quotationId     String
+  inventoryItemId String
+  quantity        Decimal
+  unitCost        Decimal
+  lineTotal       Decimal  @default(0)
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  quotation    SupplierQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem    @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([quotationId])
+  @@index([inventoryItemId])
+}
+
+model SupplierInvoice {
+  id               String                 @id @default(uuid())
+  restaurantId     String
+  invoiceNumber    String
+  supplierId       String?
+  purchaseOrderId  String?
+  status           SupplierInvoiceStatus  @default(DRAFT)
+  invoiceDate      DateTime
+  dueDate          DateTime?
+  paidDate         DateTime?
+  referenceNumber  String?
+  subtotal         Decimal                @default(0)
+  taxAmount        Decimal                @default(0)
+  totalAmount      Decimal                @default(0)
+  amountPaid       Decimal                @default(0)
+  notes            String?
+  createdById      String
+  approvedById     String?
+  paidById         String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     User          @relation("supplierInvoiceCreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?         @relation("supplierInvoiceApprovedBy", fields: [approvedById], references: [id])
+  paidBy        User?         @relation("supplierInvoicePaidBy", fields: [paidById], references: [id])
+  lines         SupplierInvoiceLine[]
+
+  @@unique([restaurantId, invoiceNumber])
+  @@index([restaurantId])
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+  @@index([status])
+}
+
+model SupplierInvoiceLine {
+  id                String   @id @default(uuid())
+  invoiceId         String
+  inventoryItemId   String
+  purchaseOrderLineId String?
+  quantity          Decimal
+  unitCost          Decimal
+  lineTotal         Decimal  @default(0)
+  matchStatus       MatchStatus? @default(MATCHED)
+  matchNotes        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  invoice         SupplierInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem        @relation(fields: [inventoryItemId], references: [id])
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+
+  @@index([invoiceId])
+  @@index([inventoryItemId])
+  @@index([purchaseOrderLineId])
+}
+
+model SupplierReturn {
+  id              String               @id @default(uuid())
+  restaurantId    String
+  returnNumber    String
+  supplierId      String?
+  purchaseOrderId String?
+  status          SupplierReturnStatus  @default(DRAFT)
+  returnDate      DateTime
+  reason          String
+  notes           String?
+  createdById     String
+  approvedById    String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     User          @relation("supplierReturnCreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?         @relation("supplierReturnApprovedBy", fields: [approvedById], references: [id])
+  lines         SupplierReturnLine[]
+
+  @@unique([restaurantId, returnNumber])
+  @@index([restaurantId])
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+}
+
+model SupplierReturnLine {
+  id                String   @id @default(uuid())
+  returnId          String
+  inventoryItemId   String
+  quantity          Decimal
+  unitCost          Decimal
+  lineTotal         Decimal  @default(0)
+  reason            String?
+  createdAt         DateTime @default(now())
+
+  supplierReturn SupplierReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  inventoryItem  InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([returnId])
+  @@index([inventoryItemId])
+}
+
+model StockCount {
+  id              String           @id @default(uuid())
+  restaurantId    String
+  countNumber     String
+  countType       StockCountType   @default(FULL)
+  stockLocationId String?
+  status          StockCountStatus @default(DRAFT)
+  notes           String?
+  createdById     String
+  approvedById    String?
+  postedById      String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  postedAt        DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  restaurant    Restaurant       @relation(fields: [restaurantId], references: [id])
+  stockLocation StockLocation?   @relation(fields: [stockLocationId], references: [id])
+  createdBy     User             @relation("stockCountCreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?            @relation("stockCountApprovedBy", fields: [approvedById], references: [id])
+  lines         StockCountLine[]
+
+  @@unique([restaurantId, countNumber])
+  @@index([restaurantId])
+  @@index([stockLocationId])
+  @@index([status])
+}
+
+model StockCountLine {
+  id              String                @id @default(uuid())
+  stockCountId    String
+  inventoryItemId String
+  stockLocationId String?
+  expectedQty     Decimal               @default(0)
+  countedQty      Decimal?
+  variance        Decimal               @default(0)
+  unitCost        Decimal               @default(0)
+  varianceValue   Decimal               @default(0)
+  status          StockCountLineStatus  @default(NOT_COUNTED)
+  countedById     String?
+  recountedById   String?
+  notes           String?
+  firstCountedAt  DateTime?
+  lastCountedAt   DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  stockCount    StockCount    @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  stockLocation StockLocation? @relation(fields: [stockLocationId], references: [id])
+  countedBy     User?         @relation(fields: [countedById], references: [id])
+  recountedBy   User?         @relation("stockCountLineRecountedBy", fields: [recountedById], references: [id])
+
+  @@index([stockCountId])
+  @@index([inventoryItemId])
+  @@index([status])
 }

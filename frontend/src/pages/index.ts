@@ -40,4 +40,6 @@ export { default as Notifications } from './Notifications';
 export { default as AuditLog } from './AuditLog';
 export { default as SystemHealth } from './SystemHealth';
 export { default as Approvals } from './Approvals';
+export { default as Purchasing } from './Purchasing';
+export { default as PromotionsManagement } from './PromotionsManagement';
 export { default as NotFound } from './NotFound';

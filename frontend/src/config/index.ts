@@ -14,6 +14,8 @@ export const navItems = [
   { label: 'Payments', path: '/payments', icon: 'CreditCard' },
   { label: 'Receipts', path: '/receipts', icon: 'Receipt' },
   { label: 'Staff', path: '/staff', icon: 'Users' },
+  { label: 'Purchasing', path: '/purchasing', icon: 'ShoppingCart' },
+  { label: 'Promotions', path: '/promotions', icon: 'Gift' },
   { label: 'Reports', path: '/reports', icon: 'BarChart3' },
   { label: 'Settings', path: '/settings', icon: 'Settings' },
   { label: 'System', path: '/system', icon: 'Activity' },

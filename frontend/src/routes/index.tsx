@@ -45,6 +45,8 @@ import {
   Approvals,
   AuditLog,
   SystemHealth,
+  Purchasing,
+  PromotionsManagement,
   NotFound,
 } from '@/pages';
 
@@ -266,6 +268,39 @@ export const router = createBrowserRouter([
       {
         path: '/handovers/:id',
         element: <Handovers />,
+      },        // Procurement & Purchasing
+      {
+        path: '/purchasing',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/requisitions',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/purchase-orders',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/invoices',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/returns',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/stock-counts',
+        element: <Purchasing />,
+      },
+      {
+        path: '/purchasing/reorder',
+        element: <Purchasing />,
+      },
+      // Promotions
+      {
+        path: '/promotions',
+        element: <PromotionsManagement />,
       },
       // Tips & Pooling
       {
