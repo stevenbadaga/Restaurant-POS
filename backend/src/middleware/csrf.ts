@@ -64,6 +64,7 @@ export function csrfTokenHandler(_req: Request, res: Response): void {
 
 const CSRF_EXCLUDED_PATHS = [
   '/api/auth/login',
+  '/api/auth/logout',
   '/api/auth/refresh',
   '/api/security/csrf-token',
   '/api/setup',
