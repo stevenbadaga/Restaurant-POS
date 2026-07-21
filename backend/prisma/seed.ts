@@ -84,7 +84,7 @@ const USERS: UserSeed[] = [
     email: "manager@savannabistro.com",
     phone: "+250 788 111 001",
     employeeCode: "EMP001",
-    roles: ["MANAGER"],
+    roles: ["ADMIN", "MANAGER"],
   },
   {
     firstName: "Bob",
