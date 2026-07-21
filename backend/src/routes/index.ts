@@ -44,6 +44,7 @@ import publicOrdersRouter from './public-orders';
 import qrRouter from './qr';
 import publicQrRouter from './public-qr';
 import approvalRequestsRouter from './approval-requests';
+import printersRouter from './printers';
 import backupRouter from './backup';
 
 const router = Router();
@@ -109,6 +110,9 @@ router.use('/handovers', handoversRouter);
 
 // Settings & Backup
 router.use('/settings', settingsRouter);
+// === Printing Infrastructure ===
+router.use('/printers', printersRouter);
+
 router.use('/backup', backupRouter);
 
 // === Phase 10: Public website & online ordering ===

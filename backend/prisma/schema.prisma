@@ -229,6 +229,20 @@ enum RefundRequestStatus {
   REJECTED
 }
 
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalRequestType {
+  PAYMENT_VOID
+  REFUND
+  STOCK_ADJUSTMENT
+  ATTENDANCE_CORRECTION
+  MANAGER_REQUEST
+}
+
 // ==========================================
 // KITCHEN & NOTIFICATION ENUMS
 // ==========================================
@@ -254,6 +268,17 @@ enum NotificationType {
   APPROVAL_NEEDED
   TIP_RECEIVED
   SYSTEM
+}
+
+enum NotificationPreferenceCategory {
+  ORDER
+  KITCHEN
+  PAYMENT
+  STOCK
+  RESERVATION
+  APPROVAL
+  TIP
+  SHIFT
 }
 
 // ==========================================
@@ -590,6 +615,8 @@ model Restaurant {
   refreshTokens                RefreshToken[]
   kitchenTickets               KitchenTicket[]
   notifications                AppNotification[]
+  notificationPreferences      NotificationPreference[]
+  approvalRequests             ApprovalRequest[]
   shiftTemplates               ShiftTemplate[]
   workShifts                   WorkShift[]
   shiftAssignments             ShiftAssignment[]
@@ -657,6 +684,8 @@ model Restaurant {
   employeeCompensationProfiles EmployeeCompensationProfile[]
   employeeEmploymentProfiles   EmployeeEmploymentProfile[]
   tipPools                     TipPool[]
+  printers                     Printer[]
+  printJobs                    PrintJob[]
 }
 
 model RestaurantSettings {
@@ -823,6 +852,9 @@ model User {
   paymentRequestCancellers           PaymentRequest[]                    @relation("cancelledPayments")
   refreshTokens                      RefreshToken[]
   notifications                      AppNotification[]                   @relation("userNotifications")
+  notificationPreferences            NotificationPreference[]            @relation("userNotificationPreferences")
+  approvalRequestsCreated            ApprovalRequest[]                   @relation("approvalRequestedBy")
+  approvalRequestsReviewed           ApprovalRequest[]                   @relation("approvalReviewedBy")
   ticketsAssigned                    KitchenTicket[]                     @relation("assignedChefTickets")
   shiftAssignments                   ShiftAssignment[]
   attendanceEvents                   AttendanceEvent[]
@@ -934,6 +966,7 @@ model User {
   scPoolCreatedBy             ServiceChargePool[]                 @relation("scPoolCreatedBy")
   scPoolCalculatedBy          ServiceChargePool[]                 @relation("scPoolCalculatedBy")
   scPoolApprovedBy            ServiceChargePool[]                 @relation("scPoolApprovedBy")
+  printJobs                   PrintJob[]
 
   @@index([restaurantId])
   @@index([email])
@@ -1015,6 +1048,38 @@ model AuditLog {
   @@index([createdAt])
 }
 
+model ApprovalRequest {
+  id              String                @id @default(uuid())
+  restaurantId    String
+  requestType     ApprovalRequestType
+  status          ApprovalRequestStatus @default(PENDING)
+  title           String
+  description     String?
+  entityType      String?
+  entityId        String?
+  payload         Json
+  requestedById   String
+  reviewedById    String?
+  requestedAt     DateTime              @default(now())
+  reviewedAt      DateTime?
+  rejectionReason String?
+  decisionNote    String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  restaurant  Restaurant @relation(fields: [restaurantId], references: [id])
+  requestedBy User       @relation("approvalRequestedBy", fields: [requestedById], references: [id])
+  reviewedBy  User?      @relation("approvalReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([requestType])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@index([requestedById])
+  @@index([reviewedById])
+  @@index([createdAt])
+}
+
 // ==========================================
 // DINING & TABLES (Phase 2)
 // ==========================================
@@ -1057,7 +1122,7 @@ model RestaurantTable {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  assignedWaiterId  String?
+  assignedWaiterId String?
 
   restaurant         Restaurant         @relation(fields: [restaurantId], references: [id])
   diningArea         DiningArea?        @relation(fields: [diningAreaId], references: [id])
@@ -1112,6 +1177,7 @@ model KitchenStation {
   restaurant Restaurant      @relation(fields: [restaurantId], references: [id])
   menuItems  MenuItem[]
   tickets    KitchenTicket[]
+  printers   Printer[]
 
   @@unique([restaurantId, name])
   @@index([restaurantId])
@@ -1408,6 +1474,25 @@ model AppNotification {
   @@index([orderId])
 }
 
+model NotificationPreference {
+  id           String                         @id @default(uuid())
+  restaurantId String
+  userId       String
+  category     NotificationPreferenceCategory
+  inAppEnabled Boolean                        @default(true)
+  soundEnabled Boolean                        @default(true)
+  createdAt    DateTime                       @default(now())
+  updatedAt    DateTime                       @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation("userNotificationPreferences", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([restaurantId])
+  @@index([userId])
+  @@index([category])
+}
+
 // ==========================================
 // PAYMENT (Phase 5)
 // ==========================================
@@ -1494,7 +1579,7 @@ model Receipt {
   serviceChargeAmount       Decimal
   discountAmount            Decimal
   totalAmount               Decimal
-  tipAmount                 Decimal                       @default(0)
+  tipAmount                 Decimal       @default(0)
   amountPaid                Decimal
   changeAmount              Decimal
   receiptFooterSnapshot     String?
@@ -2804,6 +2889,7 @@ model WaitingListEntry {
   customerName          String
   phone                 String?
   partySize             Int
+  priority              Int               @default(0)
   preferredDiningAreaId String?
   estimatedWaitMinutes  Int?
   status                WaitingListStatus @default(WAITING)
@@ -2831,6 +2917,7 @@ model WaitingListEntry {
 
   @@index([restaurantId])
   @@index([status])
+  @@index([priority])
   @@index([joinedAt])
   @@index([customerId])
   @@index([tableId])
@@ -4255,4 +4342,108 @@ model PayrollSettings {
   updatedAt                                   DateTime                         @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+// ==========================================
+// PRINTING INFRASTRUCTURE
+// ==========================================
+
+enum PrinterConnectionType {
+  USB
+  NETWORK
+  BLUETOOTH
+  BROWSER
+}
+
+enum PrinterStatus {
+  ONLINE
+  OFFLINE
+  ERROR
+  DISABLED
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PrintJobType {
+  RECEIPT
+  KITCHEN_TICKET
+  X_REPORT
+  Z_REPORT
+  ORDER_SUMMARY
+  OTHER
+}
+
+model Printer {
+  id              String                 @id @default(uuid())
+  restaurantId    String
+  name            String
+  description     String?
+  connectionType  PrinterConnectionType  @default(BROWSER)
+  ipAddress       String?
+  port            Int?
+  paperSize       ReceiptPaperSize       @default(THERMAL_80MM)
+  status          PrinterStatus          @default(ONLINE)
+  isDefault       Boolean                @default(false)
+  autoPrintReceipt Boolean               @default(false)
+  autoPrintTicket Boolean                @default(false)
+  kitchenStationId String?
+  displayOrder    Int                    @default(0)
+  isActive        Boolean                @default(true)
+  config          Json?
+  lastUsedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  restaurant     Restaurant       @relation(fields: [restaurantId], references: [id])
+  kitchenStation KitchenStation?  @relation(fields: [kitchenStationId], references: [id])
+  printJobs      PrintJob[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+  @@index([kitchenStationId])
+}
+
+model PrintJob {
+  id            String         @id @default(uuid())
+  restaurantId  String
+  printerId     String?
+  jobType       PrintJobType
+  status        PrintJobStatus @default(PENDING)
+  title         String
+  content       String?
+  contentType   String         @default("text/html")
+  copies        Int            @default(1)
+  paperSize     ReceiptPaperSize @default(THERMAL_80MM)
+  entityType    String?
+  entityId      String?
+  orderId       String?
+  ticketId      String?
+  receiptId     String?
+  requestedById String
+  completedAt   DateTime?
+  failedAt      DateTime?
+  errorMessage  String?
+  retryCount    Int            @default(0)
+  metadata      Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  printer    Printer?   @relation(fields: [printerId], references: [id])
+  requestedBy User      @relation(fields: [requestedById], references: [id])
+
+  @@index([restaurantId])
+  @@index([printerId])
+  @@index([orderId])
+  @@index([ticketId])
+  @@index([receiptId])
+  @@index([status])
+  @@index([createdAt])
 }
