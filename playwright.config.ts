@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const frontendDevCommand =
+  process.platform === 'win32'
+    ? 'cmd /c "set VITE_API_URL=http://localhost:5000/api&& npm --prefix frontend run dev -- --host 127.0.0.1"'
+    : 'VITE_API_URL=http://localhost:5000/api npm --prefix frontend run dev -- --host 127.0.0.1';
+
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 60_000,
@@ -14,7 +19,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run dev',
+    command: frontendDevCommand,
     url: 'http://localhost:5173/login',
     reuseExistingServer: true,
     timeout: 120_000,
