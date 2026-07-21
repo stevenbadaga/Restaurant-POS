@@ -1027,25 +1027,74 @@ model RefreshToken {
 // ==========================================
 
 model AuditLog {
-  id           String   @id @default(uuid())
-  restaurantId String
-  userId       String?
-  action       String
-  entityType   String
-  entityId     String?
-  description  String?
-  metadata     Json?
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime @default(now())
+  id            String   @id @default(uuid())
+  restaurantId  String
+  userId        String?
+  action        String
+  entityType    String
+  entityId      String?
+  description   String?
+  // Change tracking (replaces metadata)
+  previousValue Json?
+  newValue      Json?
+  // Keep metadata for backward compatibility
+  metadata      Json?
+  // Severity for filtering: INFO, WARNING, ERROR, CRITICAL
+  severity       String   @default("INFO")
+  // Tamper-resistant hash chain (computed on create, can be backfilled for existing rows)
+  hash          String?
+  previousHash  String?
+  // Source details
+  ipAddress     String?
+  userAgent     String?
+  requestMethod String?
+  requestPath   String?
+  correlationId String?
+  createdAt     DateTime @default(now())
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
   user       User?      @relation(fields: [userId], references: [id])
 
-  @@index([restaurantId])
-  @@index([userId])
-  @@index([entityType])
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, action])
+  @@index([restaurantId, entityType])
+  @@index([restaurantId, userId])
+  @@index([restaurantId, severity])
   @@index([createdAt])
+}
+
+// ==========================================
+// SYSTEM MONITORING & METRICS
+// ==========================================
+
+model SystemMetric {
+  id           String   @id @default(uuid())
+  restaurantId String?
+  metricType   String   // e.g. 'CPU', 'MEMORY', 'DB_QUERY_TIME', 'API_LATENCY', 'SOCKET_CONNECTIONS', 'ACTIVE_USERS'
+  metricName   String
+  metricValue  Float
+  unit         String   @default("ms")
+  tags         Json?
+  recordedAt   DateTime @default(now())
+
+  @@index([metricType, recordedAt])
+  @@index([restaurantId, metricType, recordedAt])
+  @@index([recordedAt])
+}
+
+model SlowQueryLog {
+  id           String   @id @default(uuid())
+  restaurantId String?
+  query        String
+  durationMs   Float
+  source       String?  // e.g. route name or service name
+  correlationId String?
+  params       Json?
+  recordedAt   DateTime @default(now())
+
+  @@index([durationMs])
+  @@index([recordedAt])
+  @@index([source])
 }
 
 model ApprovalRequest {

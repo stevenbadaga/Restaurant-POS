@@ -1,8 +1,12 @@
 import { RouterProvider } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import { router } from '@/routes';
+import ErrorBoundary, { initGlobalErrorHandlers } from '@/components/ErrorBoundary';
 
 const ConnectionStatus = lazy(() => import('@/components/ConnectionStatus'));
+
+// Initialize global error handlers on app load
+initGlobalErrorHandlers();
 
 export default function App() {
   useEffect(() => {
@@ -13,11 +17,11 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <Suspense fallback={null}>
         <ConnectionStatus />
       </Suspense>
       <RouterProvider router={router} />
-    </>
+    </ErrorBoundary>
   );
 }

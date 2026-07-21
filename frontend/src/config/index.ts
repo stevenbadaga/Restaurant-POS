@@ -1,5 +1,5 @@
 export const config = {
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  apiUrl: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'),
   appName: 'Restaurant POS',
   version: '1.0.0',
 } as const;
@@ -16,4 +16,6 @@ export const navItems = [
   { label: 'Staff', path: '/staff', icon: 'Users' },
   { label: 'Reports', path: '/reports', icon: 'BarChart3' },
   { label: 'Settings', path: '/settings', icon: 'Settings' },
+  { label: 'System', path: '/system', icon: 'Activity' },
+  { label: 'Audit Trail', path: '/audit', icon: 'Shield' },
 ] as const;

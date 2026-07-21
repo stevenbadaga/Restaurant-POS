@@ -21,9 +21,9 @@ export async function generateAuthTokens(userId: string, restaurantId: string, u
   const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
   const accessToken = jwt.sign(
-    { userId, restaurantId },
+    { userId, restaurantId, typ: 'access' },
     env.JWT_ACCESS_SECRET,
-    { expiresIn: env.ACCESS_TOKEN_EXPIRES_IN || '15m' } as any
+    { algorithm: 'HS256', expiresIn: env.ACCESS_TOKEN_EXPIRES_IN || '15m' } as any
   );
 
   const rawRefreshToken = crypto.randomBytes(40).toString('hex');
@@ -60,8 +60,14 @@ export function setAuthCookies(res: any, tokens: AuthTokens) {
 }
 
 export function clearAuthCookies(res: any) {
-  res.clearCookie(ACCESS_COOKIE, { path: '/' });
-  res.clearCookie(REFRESH_COOKIE, { path: '/' });
+  const baseOptions = {
+    path: '/',
+    domain: env.COOKIE_DOMAIN || undefined,
+    secure: env.COOKIE_SECURE,
+    sameSite: 'lax' as const,
+  };
+  res.clearCookie(ACCESS_COOKIE, baseOptions);
+  res.clearCookie(REFRESH_COOKIE, baseOptions);
 }
 
 async function validatePassword(password: string, passwordHash: string): Promise<boolean> {
@@ -246,6 +252,13 @@ export async function refreshToken(rawRefreshToken: string, ipAddress?: string, 
   });
 
   if (!storedToken) {
+    const reusedToken = await prisma.refreshToken.findFirst({
+      where: { tokenHash, revokedAt: { not: null } },
+      select: { userId: true },
+    });
+    if (reusedToken) {
+      await revokeAllUserTokens(reusedToken.userId);
+    }
     throw new UnauthorizedError('Invalid or expired refresh token');
   }
 
@@ -574,25 +587,35 @@ export async function setupRestaurant(input: {
       },
     });
 
+    const auditId1 = crypto.randomUUID();
+    const auditId2 = crypto.randomUUID();
+    const now = new Date();
+
     await tx.auditLog.create({
       data: {
+        id: auditId1,
         restaurantId: restaurant.id,
         userId: user.id,
         action: 'RESTAURANT_SETUP',
         entityType: 'RESTAURANT',
         entityId: restaurant.id,
         description: `Restaurant "${restaurant.name}" created with administrator ${user.email}`,
+        hash: crypto.createHash('sha256').update(`setup|${restaurant.id}|${auditId1}|${now.toISOString()}`).digest('hex'),
+        createdAt: now,
       },
     });
 
     await tx.auditLog.create({
       data: {
+        id: auditId2,
         restaurantId: restaurant.id,
         userId: user.id,
         action: 'ADMIN_CREATED',
         entityType: 'USER',
         entityId: user.id,
         description: `Initial administrator account created for ${user.email}`,
+        hash: crypto.createHash('sha256').update(`admin|${user.id}|${auditId2}|${now.toISOString()}`).digest('hex'),
+        createdAt: now,
       },
     });
 

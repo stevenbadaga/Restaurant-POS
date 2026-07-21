@@ -37,5 +37,7 @@ export { default as WaitingList } from './WaitingList';
 export { default as QrCodes } from './QrCodes';
 export { default as QrMenu } from './QrMenu';
 export { default as Notifications } from './Notifications';
+export { default as AuditLog } from './AuditLog';
+export { default as SystemHealth } from './SystemHealth';
 export { default as Approvals } from './Approvals';
 export { default as NotFound } from './NotFound';

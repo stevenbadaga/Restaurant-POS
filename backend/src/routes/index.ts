@@ -44,6 +44,8 @@ import publicOrdersRouter from './public-orders';
 import qrRouter from './qr';
 import publicQrRouter from './public-qr';
 import approvalRequestsRouter from './approval-requests';
+import auditRouter from './audit';
+import monitoringRouter from './monitoring';
 import printersRouter from './printers';
 import backupRouter from './backup';
 
@@ -107,6 +109,10 @@ router.use('/attendance', attendanceRouter);
 router.use('/cash-registers', cashRegistersRouter);
 router.use('/cashier-sessions', cashierSessionsRouter);
 router.use('/handovers', handoversRouter);
+
+// === Audit Trail & Monitoring ===
+router.use('/audit', auditRouter);
+router.use('/monitoring', monitoringRouter);
 
 // Settings & Backup
 router.use('/settings', settingsRouter);

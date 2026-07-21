@@ -43,6 +43,8 @@ import {
   QrMenu,
   Notifications,
   Approvals,
+  AuditLog,
+  SystemHealth,
   NotFound,
 } from '@/pages';
 
@@ -283,12 +285,20 @@ export const router = createBrowserRouter([
       {
         path: '/staff',
         element: <Staff />,
-      },
-      // Reports library
-      {
-        path: '/reports',
-        element: <Reports />,
-      },
+      },      // Monitoring & Audit
+        {
+          path: '/system',
+          element: <SystemHealth />,
+        },
+        {
+          path: '/audit',
+          element: <AuditLog />,
+        },
+        // Reports library
+        {
+          path: '/reports',
+          element: <Reports />,
+        },
       // Report detail pages (dynamic route)
       {
         path: '/reports/:reportType',
