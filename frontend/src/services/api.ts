@@ -60,6 +60,12 @@ api.interceptors.response.use(
     // CSRF token refresh on 403
     if (error.response?.status === 403 && error.response?.data?.message?.includes('CSRF')) {
       csrfToken = null;
+      const originalRequest = error.config;
+      if (originalRequest && !originalRequest._csrfRetry) {
+        originalRequest._csrfRetry = true;
+        originalRequest.headers.set('x-csrf-token', await getCsrfToken());
+        return api.request(originalRequest);
+      }
     }
 
     // Queue offline mutations for later sync

@@ -77,7 +77,11 @@ async function main() {
         lastName: userSeed.lastName,
         phone: userSeed.phone,
         employeeCode: userSeed.employeeCode,
+        passwordHash,
         status: 'ACTIVE',
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        mustChangePassword: false,
       },
     });
 
@@ -97,7 +101,7 @@ async function main() {
   await prisma.tableQrToken.updateMany({
     where: {
       restaurantId: restaurant.id,
-      OR: [{ tokenPrefix: 'e2eqr01' }, { tokenHash: 'e2e-test-token-hash' }],
+      OR: [{ tokenPrefix: 'e2eqr01' }, { tokenHash: 'e2e-test-token-hash' }, { tableId: table.id, isActive: true }],
     },
     data: { isActive: false, revokedAt: new Date() },
   });

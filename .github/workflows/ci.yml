@@ -284,7 +284,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:test_password@localhost:5432/restaurant_pos_test
 
       - name: Seed test data
-        run: npx tsx prisma/seed.ts
+        run: |
+          npx tsx prisma/seed.ts
+          node ../tests/e2e/ensure-test-users.js
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql://postgres:test_password@localhost:5432/restaurant_pos_test

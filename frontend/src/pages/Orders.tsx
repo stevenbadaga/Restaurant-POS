@@ -94,24 +94,26 @@ export default function Orders() {
           break;
         case 'mine':
           data = await getOrders({ page, limit: 50 });
-          let mineFiltered = (data.data || []).filter((o: Order) => o.waiterId === userId);
-          // Also include orders from this waiter's assigned tables
-          try {
-            const tablesRes = await api.get('/tables/assignments/workload');
-            const myTables = (tablesRes.data.data || []).find((w: any) => w.id === userId)?.assignedTables || [];
-            const myTableIds = myTables.map((t: any) => t.id);
-            if (myTableIds.length > 0) {
-              const allOrders = (data.data || []);
-              const tableOrders = allOrders.filter((o: Order) => o.tableId && myTableIds.includes(o.tableId) && o.waiterId !== userId);
-              mineFiltered = [...mineFiltered, ...tableOrders];
-              // Deduplicate
-              const seen = new Set<string>();
-              mineFiltered = mineFiltered.filter((o: Order) => { if (seen.has(o.id)) return false; seen.add(o.id); return true; });
-            }
-          } catch { /* non-critical - fall back to just waiterId filter */ }
-          setOrders(mineFiltered);
-          setTotalPages(data.pagination?.totalPages || 1);
-          break;
+          {
+            let mineFiltered = (data.data || []).filter((o: Order) => o.waiterId === userId);
+            // Also include orders from this waiter's assigned tables
+            try {
+              const tablesRes = await api.get('/tables/assignments/workload');
+              const myTables = (tablesRes.data.data || []).find((w: any) => w.id === userId)?.assignedTables || [];
+              const myTableIds = myTables.map((t: any) => t.id);
+              if (myTableIds.length > 0) {
+                const allOrders = (data.data || []);
+                const tableOrders = allOrders.filter((o: Order) => o.tableId && myTableIds.includes(o.tableId) && o.waiterId !== userId);
+                mineFiltered = [...mineFiltered, ...tableOrders];
+                // Deduplicate
+                const seen = new Set<string>();
+                mineFiltered = mineFiltered.filter((o: Order) => { if (seen.has(o.id)) return false; seen.add(o.id); return true; });
+              }
+            } catch { /* non-critical - fall back to just waiterId filter */ }
+            setOrders(mineFiltered);
+            setTotalPages(data.pagination?.totalPages || 1);
+            break;
+          }
         case 'history':
           await Promise.all([
             getOrders({ status: 'CLOSED', page, limit: 50 }),

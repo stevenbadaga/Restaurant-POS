@@ -119,24 +119,20 @@ export default function Notifications() {
   const socketRef = useRef<any>(null);
 
   const fetchNotifications = useCallback(async (cursor?: string, append = false) => {
-    try {
-      const params: Record<string, string> = { limit: '50' };
-      if (filter !== 'all') params.unreadOnly = 'true';
-      if (cursor) params.cursor = cursor;
+    const params: Record<string, string> = { limit: '50' };
+    if (filter !== 'all') params.unreadOnly = 'true';
+    if (cursor) params.cursor = cursor;
 
-      const result = await getNotifications(params);
-      const data = result.data;
+    const result = await getNotifications(params);
+    const data = result.data;
 
-      if (append) {
-        setNotifications((prev) => [...prev, ...data.notifications]);
-      } else {
-        setNotifications(data.notifications);
-      }
-      setHasMore(data.pagination.hasMore);
-      setNextCursor(data.pagination.nextCursor);
-    } catch (err: any) {
-      throw err;
+    if (append) {
+      setNotifications((prev) => [...prev, ...data.notifications]);
+    } else {
+      setNotifications(data.notifications);
     }
+    setHasMore(data.pagination.hasMore);
+    setNextCursor(data.pagination.nextCursor);
   }, [filter]);
 
   const fetchUnreadCount = useCallback(async () => {
