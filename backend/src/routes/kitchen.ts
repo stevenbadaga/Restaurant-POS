@@ -138,7 +138,9 @@ router.patch('/tickets/:ticketId/accept', requireRole('ADMIN', 'MANAGER', 'CHEF'
         status: 'ACCEPTED',
         assignedChefId: req.user!.id,
       });
-    } catch { }
+    } catch {
+      // Socket broadcasts are best-effort; the API response should not fail if sockets are unavailable.
+    }
 
     res.json({ success: true, data: updated, message: 'Ticket accepted' });
   } catch (error) { next(error); }
@@ -183,7 +185,9 @@ router.patch('/tickets/:ticketId/prepare', requireRole('ADMIN', 'MANAGER', 'CHEF
         status: 'PREPARING',
         orderId: ticket.orderId,
       });
-    } catch { }
+    } catch {
+      // Socket broadcasts are best-effort; the API response should not fail if sockets are unavailable.
+    }
 
     res.json({ success: true, data: updated, message: 'Preparation started' });
   } catch (error) { next(error); }
@@ -286,7 +290,9 @@ router.patch('/tickets/:ticketId/mark-ready', requireRole('ADMIN', 'MANAGER', 'C
         });
         if (notif) await notificationService.emitNotification(notif);
       }
-    } catch { }
+    } catch {
+      // Notifications are best-effort; marking items ready should still complete if notification delivery fails.
+    }
 
     res.json({ success: true, message: `${parsed.orderItemIds.length} item(s) marked ready` });
   } catch (error) {
