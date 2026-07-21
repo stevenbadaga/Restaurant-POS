@@ -2,8 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const frontendDevCommand =
   process.platform === 'win32'
-    ? 'cmd /c "set VITE_API_URL=http://localhost:5000/api&& npm --prefix frontend run dev -- --host 127.0.0.1"'
-    : 'VITE_API_URL=http://localhost:5000/api npm --prefix frontend run dev -- --host 127.0.0.1';
+    ? 'cmd /c "set VITE_API_URL=/api&& npm --prefix frontend run dev -- --host 127.0.0.1"'
+    : 'VITE_API_URL=/api npm --prefix frontend run dev -- --host 127.0.0.1';
 
 export default defineConfig({
   testDir: './tests/e2e',
